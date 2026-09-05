@@ -40,11 +40,20 @@ export const GoogleAuthButton: React.FC<GoogleAuthButtonProps> = ({
   const handleGoogleSignIn = async (account: { email: string; name: string; avatar_url?: string }) => {
     setLoading(true);
     try {
-      await loginWithGoogle(account);
+      const loggedUser = await loginWithGoogle(account);
       setShowModal(false);
-      navigate('/dashboard');
+      if (loggedUser && !loggedUser.is_onboarded) {
+        navigate('/onboarding');
+      } else {
+        navigate('/dashboard');
+      }
     } catch (err: any) {
-      const msg = err.response?.data?.error || 'Google authentication failed';
+      console.error('handleGoogleSignIn error:', err);
+      const msg =
+        err.response?.data?.error ||
+        err.response?.data?.message ||
+        err.message ||
+        'Google authentication failed';
       if (onError) onError(msg);
     } finally {
       setLoading(false);

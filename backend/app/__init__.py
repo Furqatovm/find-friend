@@ -54,7 +54,14 @@ def create_app(config_class=Config):
 
     @app.errorhandler(500)
     def server_error(e):
-        return jsonify({'error': 'Internal server error'}), 500
+        import traceback
+        trace = traceback.format_exc()
+        print(f"INTERNAL SERVER ERROR: {e}\n{trace}")
+        return jsonify({
+            'error': 'Internal server error',
+            'detail': str(e),
+            'trace': trace if app.debug or True else None
+        }), 500
 
     with app.app_context():
         db.create_all()

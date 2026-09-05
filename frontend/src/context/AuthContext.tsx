@@ -6,7 +6,7 @@ interface AuthContextType {
   user: User | null;
   loading: boolean;
   login: (data: { email_or_username: string; password: string }) => Promise<void>;
-  loginWithGoogle: (data: { email: string; name: string; avatar_url?: string }) => Promise<void>;
+  loginWithGoogle: (data: { email: string; name: string; avatar_url?: string }) => Promise<User>;
   register: (data: { username: string; email: string; password: string; display_name?: string; city?: string }) => Promise<void>;
   logout: () => void;
   updateUser: (updatedData: Partial<User>) => void;
@@ -65,6 +65,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     localStorage.setItem('withme_refresh_token', refresh_token);
     localStorage.setItem('withme_user', JSON.stringify(userData));
     setUser(userData);
+    return userData;
   };
 
   const register = async (data: { username: string; email: string; password: string; display_name?: string; city?: string }) => {
