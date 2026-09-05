@@ -6,6 +6,7 @@ import { AuthProvider } from '@/context/AuthContext';
 import { LocationProvider } from '@/context/LocationContext';
 import { NotificationProvider } from '@/context/NotificationContext';
 import { AppRoutes } from '@/routes/AppRoutes';
+import { TopLineLoader } from '@/components/common/TopLineLoader';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -24,6 +25,7 @@ export const App: React.FC = () => {
           <AuthProvider>
             <LocationProvider>
               <NotificationProvider>
+                <TopLineLoader />
                 <AppRoutes />
               </NotificationProvider>
             </LocationProvider>
