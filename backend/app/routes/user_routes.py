@@ -57,6 +57,9 @@ def update_current_user():
         if field in data:
             setattr(profile, field, data[field])
 
+    if 'is_onboarded' in data:
+        user.is_onboarded = bool(data['is_onboarded'])
+
     # Update Interests if provided
     if 'interests' in data or 'interest_ids' in data:
         interest_items = data.get('interests') or data.get('interest_ids') or []
@@ -202,24 +205,26 @@ def complete_onboarding():
     profile.github = data.get('github')
 
     # 2. Interests (ID or Names)
-    interest_ids = data.get('interest_ids', [])
+    interest_ids = data.get('interest_ids') or data.get('interests') or []
     UserInterest.query.filter_by(user_id=user.id).delete()
-    for i_id in interest_ids:
-        interest = Interest.query.get(i_id) or Interest.query.filter(Interest.name.ilike(f"%{i_id}%")).first()
-        if not interest and isinstance(i_id, str) and len(i_id.strip()) > 1:
-            interest = Interest(name=i_id.strip(), category='General')
+    for i_item in interest_ids:
+        i_name = i_item if isinstance(i_item, str) else (i_item.get('name') or i_item.get('id', ''))
+        interest = (Interest.query.get(i_name) if len(i_name) == 36 else None) or Interest.query.filter(Interest.name.ilike(f"%{i_name}%")).first()
+        if not interest and isinstance(i_name, str) and len(i_name.strip()) > 1:
+            interest = Interest(name=i_name.strip(), category='General')
             db.session.add(interest)
             db.session.flush()
         if interest:
             db.session.add(UserInterest(user_id=user.id, interest_id=interest.id))
 
     # 3. Goals (ID or Titles)
-    goal_ids = data.get('goal_ids', [])
+    goal_ids = data.get('goal_ids') or data.get('goals') or []
     UserGoal.query.filter_by(user_id=user.id).delete()
-    for g_id in goal_ids:
-        goal = Goal.query.get(g_id) or Goal.query.filter(Goal.title.ilike(f"%{g_id}%")).first()
-        if not goal and isinstance(g_id, str) and len(g_id.strip()) > 1:
-            goal = Goal(title=g_id.strip(), category='General')
+    for g_item in goal_ids:
+        g_title = g_item if isinstance(g_item, str) else (g_item.get('title') or g_item.get('id', ''))
+        goal = (Goal.query.get(g_title) if len(g_title) == 36 else None) or Goal.query.filter(Goal.title.ilike(f"%{g_title}%")).first()
+        if not goal and isinstance(g_title, str) and len(g_title.strip()) > 1:
+            goal = Goal(title=g_title.strip(), category='General')
             db.session.add(goal)
             db.session.flush()
         if goal:
@@ -229,15 +234,15 @@ def complete_onboarding():
     skills_data = data.get('skills', [])
     UserSkill.query.filter_by(user_id=user.id).delete()
     for s_item in skills_data:
-        s_id = s_item.get('skill_id') or s_item.get('id')
-        s_name = s_item.get('name')
+        s_id = s_item.get('skill_id') or s_item.get('id') if isinstance(s_item, dict) else None
+        s_name = s_item.get('name') if isinstance(s_item, dict) else s_item
+        level = s_item.get('level', 'Intermediate') if isinstance(s_item, dict) else 'Intermediate'
         skill = (Skill.query.get(s_id) if s_id else None) or (Skill.query.filter(Skill.name.ilike(f"%{s_name}%")).first() if s_name else None)
-        if not skill and s_name and len(s_name.strip()) > 1:
+        if not skill and isinstance(s_name, str) and len(s_name.strip()) > 1:
             skill = Skill(name=s_name.strip(), category='General')
             db.session.add(skill)
             db.session.flush()
         if skill:
-            level = s_item.get('level', 'Intermediate')
             db.session.add(UserSkill(user_id=user.id, skill_id=skill.id, level=level))
 
     # 5. Availability

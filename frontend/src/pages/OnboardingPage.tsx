@@ -25,9 +25,16 @@ interface ChatMessage {
 }
 
 export const OnboardingPage: React.FC = () => {
-  const { user, refreshUser } = useAuth();
+  const { user, refreshUser, updateUser } = useAuth();
   const { setLocationManually } = useLocation();
   const navigate = useNavigate();
+
+  // If already onboarded, redirect straight to dashboard
+  useEffect(() => {
+    if (user && user.is_onboarded) {
+      navigate('/dashboard', { replace: true });
+    }
+  }, [user?.is_onboarded, navigate]);
 
   const [currentStep, setCurrentStep] = useState(1);
   const [inputText, setInputText] = useState('');
@@ -163,15 +170,36 @@ export const OnboardingPage: React.FC = () => {
   const handleFinishOnboarding = async () => {
     setSubmitting(true);
     try {
-      await api.put('/users/me', {
+      const payload = {
         ...extractedProfile,
-        avatar_url: avatarUrl
-      });
+        interest_ids: extractedProfile.interests,
+        goal_ids: extractedProfile.goals,
+        avatar_url: avatarUrl,
+        is_onboarded: true
+      };
+
+      let responseUser = null;
+      try {
+        const res = await api.post('/users/onboarding', payload);
+        responseUser = res.data?.user;
+      } catch (onboardingErr) {
+        console.warn('POST /users/onboarding failed, falling back to PUT /users/me', onboardingErr);
+        const res = await api.put('/users/me', payload);
+        responseUser = res.data;
+      }
+
       if (extractedProfile.city) {
         setLocationManually(extractedProfile.city);
       }
+
+      if (responseUser) {
+        updateUser({ ...responseUser, is_onboarded: true });
+      } else {
+        updateUser({ is_onboarded: true });
+      }
+
       await refreshUser();
-      navigate('/dashboard');
+      navigate('/dashboard', { replace: true });
     } catch (err) {
       console.error('Failed to save profile', err);
     } finally {
