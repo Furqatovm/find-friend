@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Users, Plus } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { GroupCard } from '@/components/cards/GroupCard';
 import { Button } from '@/components/ui/Button';
@@ -9,29 +10,19 @@ import type { Group } from '@/types';
 import { CreateGroupModal } from '@/components/groups/CreateGroupModal';
 
 export const GroupsPage: React.FC = () => {
-  const [groups, setGroups] = useState<Group[]>([]);
   const [category, setCategory] = useState('All');
-  const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
 
-  const fetchGroups = async () => {
-    setLoading(true);
-    try {
+  const { data: groups = [], isLoading: loading, refetch: fetchGroups } = useQuery<Group[]>({
+    queryKey: ['groups', category],
+    queryFn: async () => {
       const params: any = {};
       if (category !== 'All') params.category = category;
 
       const res = await api.get('/groups', { params });
-      setGroups(res.data);
-    } catch (err) {
-      console.error('Failed to load groups', err);
-    } finally {
-      setLoading(false);
+      return res.data || [];
     }
-  };
-
-  useEffect(() => {
-    fetchGroups();
-  }, [category]);
+  });
 
   const categories = ['All', 'Study', 'Startups', 'Languages', 'Gaming', 'Learning'];
 

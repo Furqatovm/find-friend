@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { api } from '@/lib/api';
+import { useQuery } from '@tanstack/react-query';
 import { UserCard } from '@/components/cards/UserCard';
 import { ActivityCard } from '@/components/cards/ActivityCard';
 import { ProjectCard } from '@/components/cards/ProjectCard';
@@ -22,31 +23,25 @@ export const DashboardPage: React.FC = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
 
-  const [recommendedPeople, setRecommendedPeople] = useState<UserCardData[]>([]);
-  const [upcomingActivities, setUpcomingActivities] = useState<Activity[]>([]);
-  const [featuredProjects, setFeaturedProjects] = useState<Project[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  const fetchDashboardData = async () => {
-    try {
+  const { data: dashboardData, isLoading: loading, refetch: fetchDashboardData } = useQuery({
+    queryKey: ['dashboardData'],
+    queryFn: async () => {
       const [peopleRes, actRes, projRes] = await Promise.all([
         api.get('/discover'),
         api.get('/activities'),
         api.get('/projects')
       ]);
-      setRecommendedPeople(peopleRes.data.slice(0, 6));
-      setUpcomingActivities(actRes.data.slice(0, 3));
-      setFeaturedProjects(projRes.data.slice(0, 3));
-    } catch (err) {
-      console.error('Failed to load dashboard data', err);
-    } finally {
-      setLoading(false);
+      return {
+        people: (peopleRes.data || []).slice(0, 6) as UserCardData[],
+        activities: (actRes.data || []).slice(0, 3) as Activity[],
+        projects: (projRes.data || []).slice(0, 3) as Project[]
+      };
     }
-  };
+  });
 
-  useEffect(() => {
-    fetchDashboardData();
-  }, []);
+  const recommendedPeople = dashboardData?.people || [];
+  const upcomingActivities = dashboardData?.activities || [];
+  const featuredProjects = dashboardData?.projects || [];
 
   const getGreeting = () => {
     const hour = new Date().getHours();

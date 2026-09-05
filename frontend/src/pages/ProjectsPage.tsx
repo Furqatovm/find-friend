@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Rocket, Plus } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { ProjectCard } from '@/components/cards/ProjectCard';
 import { Button } from '@/components/ui/Button';
@@ -10,30 +11,20 @@ import { UserCardSkeleton } from '@/components/ui/Skeleton';
 import type { Project } from '@/types';
 
 export const ProjectsPage: React.FC = () => {
-  const [projects, setProjects] = useState<Project[]>([]);
   const [category, setCategory] = useState('All');
   const [stage, setStage] = useState('All');
-  const [loading, setLoading] = useState(true);
 
-  const fetchProjects = async () => {
-    setLoading(true);
-    try {
+  const { data: projects = [], isLoading: loading, refetch: fetchProjects } = useQuery<Project[]>({
+    queryKey: ['projects', category, stage],
+    queryFn: async () => {
       const params: any = {};
       if (category !== 'All') params.category = category;
       if (stage !== 'All') params.stage = stage;
 
       const res = await api.get('/projects', { params });
-      setProjects(res.data);
-    } catch (err) {
-      console.error('Failed to load projects', err);
-    } finally {
-      setLoading(false);
+      return res.data || [];
     }
-  };
-
-  useEffect(() => {
-    fetchProjects();
-  }, [category, stage]);
+  });
 
   const categories = ['All', 'Startups', 'Game Dev', 'Open Source', 'AI', 'EdTech'];
   const stages = ['All', 'Idea', 'Prototype', 'MVP', 'Launched'];

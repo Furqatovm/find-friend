@@ -6,6 +6,7 @@ import {
   Filter,
   SlidersHorizontal
 } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { UserCard } from '@/components/cards/UserCard';
 import { Button } from '@/components/ui/Button';
@@ -21,41 +22,31 @@ export const DiscoverPage: React.FC = () => {
   const initialGoal = searchParams.get('goal') || 'All';
 
   const [search, setSearch] = useState('');
+  const [submittedSearch, setSubmittedSearch] = useState('');
   const [category, setCategory] = useState(initialCategory);
   const [goalFilter, setGoalFilter] = useState(initialGoal);
   const [activityMode, setActivityMode] = useState('All');
   const [minScore, setMinScore] = useState(0);
   const [showFilters, setShowFilters] = useState(false);
 
-  const [users, setUsers] = useState<UserCardData[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  const fetchUsers = async () => {
-    setLoading(true);
-    try {
+  const { data: users = [], isLoading: loading, refetch: fetchUsers } = useQuery<UserCardData[]>({
+    queryKey: ['discoverUsers', category, goalFilter, activityMode, minScore, submittedSearch],
+    queryFn: async () => {
       const params: any = {};
-      if (search) params.search = search;
+      if (submittedSearch) params.search = submittedSearch;
       if (category && category !== 'All') params.category = category;
       if (goalFilter && goalFilter !== 'All') params.goal = goalFilter;
       if (activityMode && activityMode !== 'All') params.activity_mode = activityMode;
       if (minScore > 0) params.min_score = minScore;
 
       const res = await api.get('/discover', { params });
-      setUsers(res.data);
-    } catch (err) {
-      console.error('Failed to discover users', err);
-    } finally {
-      setLoading(false);
+      return res.data || [];
     }
-  };
-
-  useEffect(() => {
-    fetchUsers();
-  }, [category, goalFilter, activityMode, minScore]);
+  });
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    fetchUsers();
+    setSubmittedSearch(search);
   };
 
   const categories = [

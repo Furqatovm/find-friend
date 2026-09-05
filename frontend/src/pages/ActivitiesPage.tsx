@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Calendar, Plus } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { ActivityCard } from '@/components/cards/ActivityCard';
 import { Button } from '@/components/ui/Button';
@@ -10,32 +11,22 @@ import { UserCardSkeleton } from '@/components/ui/Skeleton';
 import type { Activity } from '@/types';
 
 export const ActivitiesPage: React.FC = () => {
-  const [activities, setActivities] = useState<Activity[]>([]);
   const [category, setCategory] = useState('All');
   const [locationType, setLocationType] = useState('All');
   const [search] = useState('');
-  const [loading, setLoading] = useState(true);
 
-  const fetchActivities = async () => {
-    setLoading(true);
-    try {
+  const { data: activities = [], isLoading: loading, refetch: fetchActivities } = useQuery<Activity[]>({
+    queryKey: ['activities', category, locationType, search],
+    queryFn: async () => {
       const params: any = {};
       if (category !== 'All') params.category = category;
       if (locationType !== 'All') params.location_type = locationType;
       if (search) params.search = search;
 
       const res = await api.get('/activities', { params });
-      setActivities(res.data);
-    } catch (err) {
-      console.error('Failed to load activities', err);
-    } finally {
-      setLoading(false);
+      return res.data || [];
     }
-  };
-
-  useEffect(() => {
-    fetchActivities();
-  }, [category, locationType]);
+  });
 
   const categories = ['All', 'Study', 'Coding', 'Gaming', 'Languages', 'Sports', 'Music', 'Creative', 'Startups'];
 
