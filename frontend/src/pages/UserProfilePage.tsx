@@ -343,6 +343,39 @@ export const UserProfilePage: React.FC = () => {
     }
   };
 
+  const handleAcceptConnection = async () => {
+    const connId = profileData?.connection?.id;
+    if (!connId) return;
+    setConnectLoading(true);
+    try {
+      await api.put(`/connections/${connId}`, { action: 'accept' });
+      setConnStatus('accepted');
+      notify.success('Connected!', `You are now connected with ${profileData?.profile?.display_name || profileData?.username}!`);
+      fetchProfile();
+    } catch (err: any) {
+      console.error('Failed to accept connection', err);
+      notify.error('Error', err.response?.data?.error || 'Failed to accept invitation.');
+    } finally {
+      setConnectLoading(false);
+    }
+  };
+
+  const handleDeclineConnection = async () => {
+    const connId = profileData?.connection?.id;
+    if (!connId) return;
+    setConnectLoading(true);
+    try {
+      await api.put(`/connections/${connId}`, { action: 'decline' });
+      setConnStatus('none');
+      notify.info('Declined', 'Connection invitation was declined.');
+      fetchProfile();
+    } catch (err: any) {
+      console.error('Failed to decline connection', err);
+    } finally {
+      setConnectLoading(false);
+    }
+  };
+
   const handleStartDirectChat = async () => {
     if (!currentUser) {
       navigate('/login');
@@ -588,10 +621,20 @@ export const UserProfilePage: React.FC = () => {
                 </Button>
 
                 {connStatus === 'accepted' ? (
-                  <Button variant="outline" size="md" onClick={handleConnect} className="text-xs font-bold">
+                  <Button variant="outline" size="md" onClick={handleConnect} className="text-xs font-bold text-emerald-600 dark:text-emerald-400 border-emerald-500/40">
                     <Check className="w-4 h-4 mr-1 text-emerald-500" />
                     Connected
                   </Button>
+                ) : connStatus === 'pending' && profileData?.connection && !profileData.connection.is_requester ? (
+                  <div className="flex items-center gap-1.5">
+                    <Button variant="primary" size="md" onClick={handleAcceptConnection} loading={connectLoading} className="text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white">
+                      <Check className="w-4 h-4 mr-1" />
+                      Accept
+                    </Button>
+                    <Button variant="outline" size="md" onClick={handleDeclineConnection} loading={connectLoading} className="text-xs font-bold text-neutral-500 hover:text-red-500 hover:bg-red-500/10">
+                      Decline
+                    </Button>
+                  </div>
                 ) : connStatus === 'pending' ? (
                   <Button variant="outline" size="md" disabled className="text-xs">
                     <Clock className="w-4 h-4 mr-1 text-amber-500" />
