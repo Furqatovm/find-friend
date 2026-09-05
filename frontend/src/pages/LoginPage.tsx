@@ -56,10 +56,12 @@ export const LoginPage: React.FC = () => {
     <div className="min-h-[80vh] flex items-center justify-center px-4 py-12 text-neutral-900 dark:text-white transition-colors duration-200">
       <div className="w-full max-w-md space-y-8 bg-white dark:bg-[#0F0F0F] border border-neutral-200 dark:border-[#242424] rounded-3xl p-8 shadow-2xl">
         <div className="text-center space-y-2">
-          <Link to="/" className="inline-flex items-center gap-2 mb-2">
-            <div className="w-8 h-8 rounded-lg bg-neutral-900 text-white dark:bg-white dark:text-black flex items-center justify-center font-black text-sm">
-              W
-            </div>
+          <Link to="/" className="inline-flex items-center gap-2.5 mb-2 group">
+            <img
+              src="/logo.svg"
+              alt="WithMe Logo"
+              className="w-9 h-9 rounded-xl shadow-md group-hover:scale-105 transition-transform shrink-0"
+            />
             <span className="text-xl font-black tracking-tight text-neutral-900 dark:text-white">
               WithMe
             </span>

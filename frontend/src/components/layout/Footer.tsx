@@ -8,9 +8,11 @@ export const Footer: React.FC = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex flex-col md:flex-row items-center justify-between gap-6">
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg bg-neutral-900 text-white dark:bg-[#141414] dark:border dark:border-[#242424] flex items-center justify-center font-bold text-sm">
-              W
-            </div>
+            <img
+              src="/logo.svg"
+              alt="WithMe Logo"
+              className="w-8 h-8 rounded-xl shadow-sm shrink-0"
+            />
             <div>
               <p className="text-sm font-bold text-neutral-900 dark:text-white">WithMe</p>
               <p className="text-xs text-neutral-500 dark:text-[#8A8A8A]">Find people who want to do the same things you do.</p>

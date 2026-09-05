@@ -97,9 +97,11 @@ export const Navbar: React.FC = () => {
           {/* Logo & Main Nav */}
           <div className="flex items-center gap-6">
             <Link to={user ? '/dashboard' : '/'} className="flex items-center gap-2.5 group">
-              <div className="w-8 h-8 rounded-xl bg-neutral-900 text-white dark:bg-white dark:text-black flex items-center justify-center shadow-sm group-hover:scale-105 transition-transform">
-                <Sparkles className="w-4 h-4 fill-current" />
-              </div>
+              <img
+                src="/logo.svg"
+                alt="WithMe Logo"
+                className="w-8 h-8 rounded-xl shadow-md group-hover:scale-105 transition-transform shrink-0"
+              />
               <span className="text-base font-extrabold tracking-tight text-neutral-900 dark:text-white">
                 WithMe
               </span>
