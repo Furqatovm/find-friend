@@ -5,20 +5,12 @@ import { Dialog } from '@/components/ui/Dialog';
 import { Button } from '@/components/ui/Button';
 import { Check, ShieldCheck } from 'lucide-react';
 
-declare global {
-  interface Window {
-    google?: any;
-  }
-}
+import { auth, googleProvider, signInWithPopup } from '@/lib/firebase';
 
 interface GoogleAuthButtonProps {
   label?: string;
   onError?: (err: string) => void;
 }
-
-const GOOGLE_CLIENT_ID =
-  (import.meta as any).env?.VITE_GOOGLE_CLIENT_ID ||
-  '483071209776-6fa3abo7cof58g1f4ge0mi1lo7vv27j1.apps.googleusercontent.com';
 
 export const GoogleAuthButton: React.FC<GoogleAuthButtonProps> = ({
   label = 'Continue with Google',
@@ -59,50 +51,31 @@ export const GoogleAuthButton: React.FC<GoogleAuthButtonProps> = ({
     }
   };
 
-  const handleButtonClick = () => {
-    if (window.google?.accounts?.oauth2) {
-      try {
-        const client = window.google.accounts.oauth2.initTokenClient({
-          client_id: GOOGLE_CLIENT_ID,
-          scope: 'email profile openid',
-          callback: async (tokenResponse: any) => {
-            if (tokenResponse?.access_token) {
-              setLoading(true);
-              try {
-                const res = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
-                  headers: { Authorization: `Bearer ${tokenResponse.access_token}` }
-                });
-                const googleUser = await res.json();
-                if (googleUser && googleUser.email) {
-                  await handleGoogleSignIn({
-                    email: googleUser.email,
-                    name: googleUser.name || googleUser.email.split('@')[0],
-                    avatar_url: googleUser.picture
-                  });
-                } else {
-                  setShowModal(true);
-                }
-              } catch (fetchErr) {
-                console.error('Failed to fetch Google profile', fetchErr);
-                setShowModal(true);
-              } finally {
-                setLoading(false);
-              }
-            }
-          },
-          error_callback: (err: any) => {
-            console.warn('Google popup error or closed', err);
-            setShowModal(true);
-          }
+  const handleButtonClick = async () => {
+    setLoading(true);
+    try {
+      const result = await signInWithPopup(auth, googleProvider);
+      const user = result.user;
+      if (user && user.email) {
+        await handleGoogleSignIn({
+          email: user.email,
+          name: user.displayName || user.email.split('@')[0],
+          avatar_url: user.photoURL || undefined
         });
-        client.requestAccessToken();
-        return;
-      } catch (e) {
-        console.warn('Failed to launch Google popup', e);
+      } else {
+        setShowModal(true);
       }
+    } catch (error: any) {
+      console.warn('Firebase Google Auth popup error:', error);
+      // If user closed the popup or popup was blocked, fallback to instant account modal
+      if (error?.code === 'auth/popup-closed-by-user' || error?.code === 'auth/cancelled-popup-request') {
+        // User voluntarily closed popup
+      } else {
+        setShowModal(true);
+      }
+    } finally {
+      setLoading(false);
     }
-    // Fallback if Google GIS script is not loaded
-    setShowModal(true);
   };
 
   const handleCustomGoogleSignIn = async (e: React.FormEvent) => {
