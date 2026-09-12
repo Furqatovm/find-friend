@@ -11,23 +11,27 @@ migrate = Migrate()
 def create_app(config_class=Config):
     app = Flask(__name__)
     app.config.from_object(config_class)
+    app.url_map.strict_slashes = False
 
     # Initialize extensions
     db.init_app(app)
     migrate.init_app(app, db)
-    CORS(app, resources={r"/api/*": {"origins": "*"}}, supports_credentials=True)
+    CORS(app, resources={r"/api/*": {"origins": "*"}})
 
     # SQLite WAL & Performance PRAGMA Listener
     with app.app_context():
         @event.listens_for(db.engine, "connect")
         def set_sqlite_pragma(dbapi_connection, connection_record):
             if "sqlite" in str(app.config.get("SQLALCHEMY_DATABASE_URI", "")):
-                cursor = dbapi_connection.cursor()
-                cursor.execute("PRAGMA journal_mode=WAL")
-                cursor.execute("PRAGMA synchronous=NORMAL")
-                cursor.execute("PRAGMA cache_size=-64000")
-                cursor.execute("PRAGMA temp_store=MEMORY")
-                cursor.close()
+                try:
+                    cursor = dbapi_connection.cursor()
+                    cursor.execute("PRAGMA journal_mode=WAL")
+                    cursor.execute("PRAGMA synchronous=NORMAL")
+                    cursor.execute("PRAGMA cache_size=-64000")
+                    cursor.execute("PRAGMA temp_store=MEMORY")
+                    cursor.close()
+                except Exception:
+                    pass
 
     # Request Performance Monitoring Middleware
     @app.before_request

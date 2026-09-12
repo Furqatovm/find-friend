@@ -42,7 +42,26 @@ export const RegisterPage: React.FC = () => {
       notify.success('Account Created!', 'Welcome to WithMe.');
       navigate('/onboarding');
     } catch (err: any) {
-      notify.error('Registration Failed', err.response?.data?.error || 'Something went wrong.');
+      let errorMsg = 'Something went wrong.';
+      if (err.response?.data) {
+        const d = err.response.data;
+        if (typeof d === 'string') {
+          if (d.includes('FUNCTION_INVOCATION_FAILED')) {
+            errorMsg = 'Serverless backend initialization failed on Vercel. Please verify backend deployment and environment variables.';
+          } else {
+            errorMsg = d.slice(0, 200);
+          }
+        } else if (typeof d.error === 'string') {
+          errorMsg = d.error;
+        } else if (typeof d.error === 'object' && d.error?.message) {
+          errorMsg = String(d.error.message);
+        } else if (typeof d.message === 'string') {
+          errorMsg = d.message;
+        }
+      } else if (err.message) {
+        errorMsg = String(err.message);
+      }
+      notify.error('Registration Failed', errorMsg);
     } finally {
       setSubmitting(false);
     }

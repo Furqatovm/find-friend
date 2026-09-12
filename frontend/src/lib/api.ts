@@ -66,7 +66,10 @@ api.interceptors.response.use(
       notifyListeners();
     }
     const originalRequest = error.config;
-    if (error.response?.status === 401 && !originalRequest._retry) {
+    const requestUrl = originalRequest?.url || '';
+    const isAuthEndpoint = requestUrl.includes('/auth/login') || requestUrl.includes('/auth/register');
+
+    if (error.response?.status === 401 && !originalRequest?._retry && !isAuthEndpoint) {
       originalRequest._retry = true;
       const refreshToken = localStorage.getItem('withme_refresh_token');
       if (refreshToken) {

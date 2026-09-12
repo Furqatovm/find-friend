@@ -42,16 +42,34 @@ interface NotificationContextType {
   notifications: NotificationItem[];
   refreshNotifications: (silent?: boolean) => Promise<void>;
   markAllRead: () => Promise<void>;
-  showNotification: (item: Omit<ToastItem, 'id'>) => void;
+  showNotification: (item: Omit<ToastItem, 'id'> | any) => void;
   removeNotification: (id: string) => void;
   notify: {
-    success: (titleOrMsg: string, maybeMsg?: string, link?: string) => void;
-    info: (titleOrMsg: string, maybeMsg?: string, link?: string) => void;
-    error: (titleOrMsg: string, maybeMsg?: string) => void;
-    group: (titleOrMsg: string, maybeMsg?: string, link?: string) => void;
-    project: (titleOrMsg: string, maybeMsg?: string, link?: string) => void;
+    success: (titleOrMsg: any, maybeMsg?: any, link?: string) => void;
+    info: (titleOrMsg: any, maybeMsg?: any, link?: string) => void;
+    error: (titleOrMsg: any, maybeMsg?: any) => void;
+    group: (titleOrMsg: any, maybeMsg?: any, link?: string) => void;
+    project: (titleOrMsg: any, maybeMsg?: any, link?: string) => void;
   };
 }
+
+export const toSafeString = (val: any, fallback: string = ''): string => {
+  if (val === null || val === undefined) return fallback;
+  if (typeof val === 'string') return val;
+  if (typeof val === 'number' || typeof val === 'boolean') return String(val);
+  if (typeof val === 'object') {
+    if (typeof val.message === 'string') return val.message;
+    if (typeof val.error === 'string') return val.error;
+    if (typeof val.detail === 'string') return val.detail;
+    if (typeof val.statusText === 'string') return val.statusText;
+    try {
+      return JSON.stringify(val);
+    } catch {
+      return fallback;
+    }
+  }
+  return String(val);
+};
 
 const NotificationContext = createContext<NotificationContextType | undefined>(undefined);
 
@@ -93,9 +111,17 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
     setToasts((prev) => prev.filter((t) => t.id !== id));
   }, []);
 
-  const showNotification = useCallback((item: Omit<ToastItem, 'id'>) => {
+  const showNotification = useCallback((item: any) => {
+    if (!item) return;
     const id = `toast_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
-    const newItem: ToastItem = { ...item, id };
+    const safeTitle = toSafeString(item.title, 'Notification');
+    const safeMessage = toSafeString(item.message, '');
+    const newItem: ToastItem = {
+      ...item,
+      id,
+      title: safeTitle,
+      message: safeMessage
+    };
 
     playChime();
 
@@ -155,43 +181,44 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
   }, [user, refreshNotifications]);
 
   const notify = {
-    success: (titleOrMsg: string, maybeMsg?: string, link?: string) => {
+    success: (titleOrMsg: any, maybeMsg?: any, link?: string) => {
       showNotification({
-        title: maybeMsg ? titleOrMsg : 'Success',
-        message: maybeMsg || titleOrMsg,
+        title: maybeMsg ? toSafeString(titleOrMsg, 'Success') : 'Success',
+        message: maybeMsg ? toSafeString(maybeMsg) : toSafeString(titleOrMsg),
         type: 'success',
         link
       });
       refreshNotifications(true);
     },
-    info: (titleOrMsg: string, maybeMsg?: string, link?: string) => {
+    info: (titleOrMsg: any, maybeMsg?: any, link?: string) => {
       showNotification({
-        title: maybeMsg ? titleOrMsg : 'Notice',
-        message: maybeMsg || titleOrMsg,
+        title: maybeMsg ? toSafeString(titleOrMsg, 'Notice') : 'Notice',
+        message: maybeMsg ? toSafeString(maybeMsg) : toSafeString(titleOrMsg),
         type: 'info',
         link
       });
       refreshNotifications(true);
     },
-    error: (titleOrMsg: string, maybeMsg?: string) =>
+    error: (titleOrMsg: any, maybeMsg?: any) => {
       showNotification({
-        title: maybeMsg ? titleOrMsg : 'Error',
-        message: maybeMsg || titleOrMsg,
+        title: maybeMsg ? toSafeString(titleOrMsg, 'Error') : 'Error',
+        message: maybeMsg ? toSafeString(maybeMsg) : toSafeString(titleOrMsg),
         type: 'error'
-      }),
-    group: (titleOrMsg: string, maybeMsg?: string, link?: string) => {
+      });
+    },
+    group: (titleOrMsg: any, maybeMsg?: any, link?: string) => {
       showNotification({
-        title: maybeMsg ? titleOrMsg : 'Group Notification',
-        message: maybeMsg || titleOrMsg,
+        title: maybeMsg ? toSafeString(titleOrMsg, 'Group Notification') : 'Group Notification',
+        message: maybeMsg ? toSafeString(maybeMsg) : toSafeString(titleOrMsg),
         type: 'group',
         link
       });
       refreshNotifications(true);
     },
-    project: (titleOrMsg: string, maybeMsg?: string, link?: string) => {
+    project: (titleOrMsg: any, maybeMsg?: any, link?: string) => {
       showNotification({
-        title: maybeMsg ? titleOrMsg : 'Project Notification',
-        message: maybeMsg || titleOrMsg,
+        title: maybeMsg ? toSafeString(titleOrMsg, 'Project Notification') : 'Project Notification',
+        message: maybeMsg ? toSafeString(maybeMsg) : toSafeString(titleOrMsg),
         type: 'project',
         link
       });
@@ -287,14 +314,14 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
                 <div className="flex-1 min-w-0 pr-5">
                   <div className="flex items-center gap-1.5">
                     <h4 className="text-xs font-semibold text-white tracking-tight truncate">
-                      {t.title}
+                      {toSafeString(t.title, 'Notification')}
                     </h4>
                     {t.link && (
                       <ExternalLink className="w-2.5 h-2.5 text-[#666]" />
                     )}
                   </div>
                   <p className="text-xs text-[#8A8A8A] mt-0.5 leading-relaxed line-clamp-2">
-                    {t.message}
+                    {toSafeString(t.message)}
                   </p>
                 </div>
 

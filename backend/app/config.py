@@ -22,7 +22,21 @@ class Config:
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     
     # Production connection pool settings
-    if _db_url and _db_url.startswith("sqlite"):
+    if os.getenv("VERCEL"):
+        # On Vercel serverless functions, keep connection pool small to avoid exhausting PostgreSQL limits
+        if _db_url and _db_url.startswith("sqlite"):
+            SQLALCHEMY_ENGINE_OPTIONS = {
+                "pool_pre_ping": True,
+            }
+        else:
+            SQLALCHEMY_ENGINE_OPTIONS = {
+                "pool_size": int(os.getenv("DB_POOL_SIZE", "2")),
+                "max_overflow": int(os.getenv("DB_MAX_OVERFLOW", "3")),
+                "pool_recycle": int(os.getenv("DB_POOL_RECYCLE", "300")),
+                "pool_pre_ping": True,
+                "pool_timeout": 15
+            }
+    elif _db_url and _db_url.startswith("sqlite"):
         SQLALCHEMY_ENGINE_OPTIONS = {
             "pool_pre_ping": True,
         }

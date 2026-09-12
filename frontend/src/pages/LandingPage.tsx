@@ -1,5 +1,5 @@
 import React from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { ArrowRight, MapPin, Users, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
@@ -85,6 +85,7 @@ const features = [
 ];
 
 export const LandingPage: React.FC = () => {
+  const navigate = useNavigate();
   const [openFaq, setOpenFaq] = React.useState<number | null>(null);
 
   return (
@@ -277,7 +278,7 @@ export const LandingPage: React.FC = () => {
                 viewport={{ once: true }}
                 transition={{ delay: i * 0.08 }}
                 className="group bg-[#0F0F0F] border border-[#1E1E1E] rounded-[12px] p-5 hover:border-[#292929] hover:bg-[#141414] transition-all cursor-pointer"
-                onClick={() => window.location.href = '/discover'}
+                onClick={() => navigate('/discover')}
               >
                 <div className="text-2xl mb-3">{cat.emoji}</div>
                 <h4 className="text-sm font-semibold text-white mb-1">{cat.label}</h4>
