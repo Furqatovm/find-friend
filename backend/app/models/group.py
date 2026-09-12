@@ -11,11 +11,11 @@ class Group(db.Model):
     
     name = db.Column(db.String(100), nullable=False)
     description = db.Column(db.Text, nullable=False)
-    category = db.Column(db.String(50), nullable=False)
-    avatar_url = db.Column(db.String(500), nullable=True)
-    banner_url = db.Column(db.String(500), nullable=True)
+    category = db.Column(db.String(50), nullable=False, index=True)
+    avatar_url = db.Column(db.Text, nullable=True)
+    banner_url = db.Column(db.Text, nullable=True)
     
-    is_private = db.Column(db.Boolean, default=False)
+    is_private = db.Column(db.Boolean, default=False, index=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -23,12 +23,16 @@ class Group(db.Model):
     members = db.relationship('GroupMember', backref='group', cascade='all, delete-orphan')
     messages = db.relationship('GroupMessage', backref='group', cascade='all, delete-orphan', order_by='GroupMessage.created_at.asc()')
 
-    def to_dict(self, current_user_id=None):
+    def to_dict(self, current_user_id=None, include_messages=True):
         is_member = any(m.user_id == current_user_id for m in self.members) if current_user_id else False
         is_admin = any(m.user_id == current_user_id and m.role == 'admin' for m in self.members) if current_user_id else False
         is_creator = self.creator_id == current_user_id if current_user_id else False
-        pinned = next((m for m in self.messages if m.is_pinned), None)
-        last_msg = self.messages[-1] if self.messages else None
+        
+        pinned = None
+        last_msg = None
+        if include_messages:
+            pinned = next((m for m in self.messages if m.is_pinned), None)
+            last_msg = self.messages[-1] if self.messages else None
         
         return {
             'id': self.id,
@@ -62,8 +66,8 @@ class GroupMember(db.Model):
     __tablename__ = 'group_members'
 
     id = db.Column(db.String(36), primary_key=True, default=generate_uuid)
-    group_id = db.Column(db.String(36), db.ForeignKey('groups.id', ondelete='CASCADE'), nullable=False)
-    user_id = db.Column(db.String(36), db.ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
+    group_id = db.Column(db.String(36), db.ForeignKey('groups.id', ondelete='CASCADE'), nullable=False, index=True)
+    user_id = db.Column(db.String(36), db.ForeignKey('users.id', ondelete='CASCADE'), nullable=False, index=True)
     role = db.Column(db.String(20), default='member')  # admin, moderator, member
     joined_at = db.Column(db.DateTime, default=datetime.utcnow)
 

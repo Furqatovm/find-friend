@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Dialog } from '@/components/ui/Dialog';
 import { Search, Users, X } from 'lucide-react';
 import { api } from '@/lib/api';
+import { Spinner } from '@/components/ui/Spinner';
 import { getInitials } from '@/lib/utils';
 import { useAuth } from '@/context/AuthContext';
 
@@ -142,7 +143,10 @@ export const FollowersModal: React.FC<FollowersModalProps> = ({
         {/* User list */}
         <div className="max-h-80 overflow-y-auto space-y-1 divide-y divide-neutral-200/50 dark:divide-[#242424]/40 pr-1">
           {loading ? (
-            <div className="text-center py-8 text-xs text-neutral-500 dark:text-[#8A8A8A]">Loading {tab}...</div>
+            <div className="py-8 flex flex-col items-center justify-center gap-2">
+              <Spinner size="md" />
+              <span className="text-xs text-[#8A8A8A]">Loading {tab}...</span>
+            </div>
           ) : filteredList.length === 0 ? (
             <div className="text-center py-10 text-neutral-400 dark:text-[#5C5C5C] space-y-2">
               <Users className="w-8 h-8 mx-auto text-neutral-300 dark:text-[#3D3D3D]" />

@@ -1,17 +1,19 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Users, Check, MessageSquare, Pin } from 'lucide-react';
-import { Card } from '../ui/Card';
-import { Badge } from '../ui/Badge';
-import { Button } from '../ui/Button';
-import { getCategoryBadgeColor, getInitials, formatTimeAgo } from '@/lib/utils';
+import { Users, Lock } from 'lucide-react';
 import { api } from '@/lib/api';
+import { getInitials } from '@/lib/utils';
 import type { Group } from '@/types';
 
 interface GroupCardProps {
   group: Group;
   onUpdate?: () => void;
 }
+
+const formatCount = (n: number) => {
+  if (n >= 1000) return `${(n / 1000).toFixed(1)}k`;
+  return n.toString();
+};
 
 export const GroupCard: React.FC<GroupCardProps> = ({ group, onUpdate }) => {
   const [isMember, setIsMember] = useState(group.is_member || false);
@@ -40,93 +42,74 @@ export const GroupCard: React.FC<GroupCardProps> = ({ group, onUpdate }) => {
     }
   };
 
-  const onlineCount = group.online_count || Math.ceil(memberCount * 0.6);
-
   return (
-    <Card hover className="flex flex-col justify-between h-full group">
-      <div>
-        <div className="flex items-center justify-between gap-2 mb-3">
-          <Badge className={getCategoryBadgeColor(group.category)}>
-            {group.category}
-          </Badge>
-          <span className="text-[11px] text-neutral-500 dark:text-[#8A8A8A] font-medium flex items-center gap-1.5">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 dark:bg-emerald-400" />
-            <strong className="text-neutral-900 dark:text-white font-bold">{onlineCount}</strong> online
-          </span>
-        </div>
-
-        <div className="flex items-center gap-3 mb-3">
-          <div className="relative shrink-0">
-            {group.avatar_url ? (
-              <img
-                src={group.avatar_url}
-                alt={group.name}
-                className="w-12 h-12 rounded-full object-cover border border-neutral-300 dark:border-[#292929]"
-              />
-            ) : (
-              <div className="w-12 h-12 rounded-full bg-neutral-200 text-neutral-900 dark:bg-[#1A1A1A] dark:text-white border border-neutral-300 dark:border-[#292929] flex items-center justify-center font-bold text-sm">
-                {getInitials(group.name)}
-              </div>
-            )}
-          </div>
-          <Link to={`/groups/${group.id}`}>
-            <h4 className="font-bold text-neutral-900 dark:text-white text-sm transition-colors line-clamp-1">
-              {group.name}
-            </h4>
-            <p className="text-[11px] text-neutral-500 dark:text-[#8A8A8A] flex items-center gap-1 mt-0.5">
-              <Users className="w-3 h-3 text-neutral-400 dark:text-[#5C5C5C]" />
-              {memberCount} members
-            </p>
-          </Link>
-        </div>
-
-        <p className="text-xs text-neutral-600 dark:text-[#D4D4D4] line-clamp-2 mb-3 leading-relaxed">
-          {group.description}
-        </p>
-
-        {/* Last active message or pinned info snippet */}
-        {group.pinned_message ? (
-          <div className="p-2 rounded-xl bg-neutral-100 dark:bg-[#141414] border border-neutral-200 dark:border-[#242424] text-[11px] text-neutral-800 dark:text-[#D4D4D4] flex items-center gap-2 mb-2">
-            <Pin className="w-3 h-3 text-amber-500 dark:text-amber-400 shrink-0 rotate-45" />
-            <span className="truncate">{group.pinned_message.content}</span>
-          </div>
-        ) : group.last_message ? (
-          <div className="p-2 rounded-xl bg-neutral-100 dark:bg-[#141414] border border-neutral-200 dark:border-[#242424] text-[11px] text-neutral-500 dark:text-[#8A8A8A] flex items-center justify-between gap-2 mb-2">
-            <span className="truncate text-neutral-800 dark:text-[#D4D4D4]">
-              <span className="text-neutral-900 dark:text-white font-medium">{group.last_message.author_name}: </span>
-              {group.last_message.content}
-            </span>
-            <span className="text-[10px] text-neutral-400 dark:text-[#5C5C5C] shrink-0">{formatTimeAgo(group.last_message.created_at)}</span>
-          </div>
-        ) : null}
-      </div>
-
-      <div className="pt-3 border-t border-neutral-200 dark:border-[#242424] flex items-center justify-between gap-2 mt-auto">
-        <Link
-          to={`/groups/${group.id}`}
-          className="text-xs font-bold text-neutral-700 dark:text-[#D4D4D4] hover:text-neutral-900 dark:hover:text-white flex items-center gap-1.5 transition-colors"
-        >
-          <MessageSquare className="w-3.5 h-3.5" />
-          Chat
+    <div className="group bg-[#141414] border border-[#292929] rounded-[12px] p-4 flex flex-col gap-3 transition-all duration-200 hover:border-[#383838] hover:-translate-y-px">
+      {/* Header */}
+      <div className="flex items-start gap-3">
+        <Link to={`/groups/${group.id}`} className="shrink-0">
+          {group.avatar_url ? (
+            <img
+              src={group.avatar_url}
+              alt={group.name}
+              className="w-11 h-11 rounded-[10px] object-cover border border-[#2E2E2E]"
+            />
+          ) : (
+            <div className="w-11 h-11 rounded-[10px] bg-[#1A1A1A] border border-[#2E2E2E] flex items-center justify-center font-bold text-sm text-white">
+              {getInitials(group.name)}
+            </div>
+          )}
         </Link>
 
-        <Button
-          variant={isMember ? 'outline' : 'primary'}
-          size="sm"
-          loading={loading}
-          onClick={handleToggleJoin}
-          className="text-xs font-bold"
-        >
-          {isMember ? (
-            <>
-              <Check className="w-3.5 h-3.5 text-amber-500 dark:text-amber-400" />
-              Joined
-            </>
-          ) : (
-            'Join Guild'
-          )}
-        </Button>
+        <div className="flex-1 min-w-0">
+          <Link to={`/groups/${group.id}`}>
+            <h4 className="font-bold text-white text-sm uppercase tracking-wide truncate hover:text-[#FFAA2B] transition-colors">
+              {group.name}
+            </h4>
+          </Link>
+          <div className="flex items-center gap-1 mt-0.5">
+            <Users className="w-3 h-3 text-[#555]" />
+            <span className="text-[11px] text-[#8A8A8A]">{formatCount(memberCount)} members</span>
+            {group.is_private && <Lock className="w-3 h-3 text-[#555] ml-1" />}
+          </div>
+        </div>
       </div>
-    </Card>
+
+      {/* Description */}
+      {group.description && (
+        <p className="text-xs text-[#8A8A8A] line-clamp-2 leading-relaxed">
+          {group.description}
+        </p>
+      )}
+
+      {/* Category */}
+      <span className="self-start inline-flex px-2 py-0.5 rounded-[5px] bg-[#1A1A1A] border border-[#2A2A2A] text-[11px] text-[#666] font-medium">
+        {group.category}
+      </span>
+
+      {/* Action */}
+      <div className="mt-auto pt-1">
+        {isMember ? (
+          <Link
+            to={`/groups/${group.id}`}
+            className="flex items-center justify-center w-full h-8 rounded-[8px] bg-[#1A1A1A] border border-[#2A2A2A] text-[#D4D4D4] hover:text-white text-xs font-medium transition-all"
+          >
+            Open Group
+          </Link>
+        ) : (
+          <button
+            type="button"
+            onClick={handleToggleJoin}
+            disabled={loading || group.is_private}
+            className={`w-full h-8 rounded-[8px] text-xs font-semibold transition-all cursor-pointer ${
+              group.is_private
+                ? 'bg-[#141414] border border-[#292929] text-[#555] cursor-not-allowed'
+                : 'bg-[#FFAA2B] hover:bg-[#FFB83D] text-black'
+            }`}
+          >
+            {group.is_private ? 'Private' : 'Join Group'}
+          </button>
+        )}
+      </div>
+    </div>
   );
 };

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import {
   Briefcase,
@@ -12,6 +12,7 @@ import {
   Users,
   AlertTriangle
 } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { useAuth } from '@/context/AuthContext';
 import { useNotification } from '@/context/NotificationContext';
@@ -20,6 +21,7 @@ import { Badge } from '@/components/ui/Badge';
 import { Card } from '@/components/ui/Card';
 import { Dialog } from '@/components/ui/Dialog';
 import { getCategoryBadgeColor, getInitials } from '@/lib/utils';
+import { PageSpinner } from '@/components/ui/Spinner';
 import { EditProjectModal } from '@/components/projects/EditProjectModal';
 import { CreateProjectGroupModal } from '@/components/projects/CreateProjectGroupModal';
 import { EditGroupModal } from '@/components/groups/EditGroupModal';
@@ -31,8 +33,6 @@ export const ProjectDetailPage: React.FC = () => {
   const { user } = useAuth();
   const { notify } = useNotification();
 
-  const [project, setProject] = useState<Project | null>(null);
-  const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
 
   // Modals state
@@ -45,22 +45,15 @@ export const ProjectDetailPage: React.FC = () => {
   const [deletingGroup, setDeletingGroup] = useState<Group | null>(null);
   const [deleteGroupLoading, setDeleteGroupLoading] = useState(false);
 
-  const fetchDetail = async () => {
-    if (!id) return;
-    setLoading(true);
-    try {
+  const { data: project, isLoading: loading, refetch: fetchDetail } = useQuery<Project | null>({
+    queryKey: ['project', id],
+    queryFn: async () => {
       const res = await api.get(`/projects/${id}`);
-      setProject(res.data);
-    } catch (err) {
-      console.error('Failed to load project detail', err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchDetail();
-  }, [id]);
+      return res.data;
+    },
+    enabled: !!id,
+    staleTime: 1000 * 60 * 5
+  });
 
   const handleToggleJoin = async () => {
     if (!project) return;
@@ -113,11 +106,7 @@ export const ProjectDetailPage: React.FC = () => {
   };
 
   if (loading) {
-    return (
-      <div className="max-w-4xl mx-auto px-4 py-16 text-center text-neutral-500 dark:text-[#8A8A8A]">
-        <p className="text-xs">Loading project details...</p>
-      </div>
-    );
+    return <PageSpinner text="Loading project..." />;
   }
 
   if (!project) {
@@ -427,7 +416,6 @@ export const ProjectDetailPage: React.FC = () => {
           onClose={() => setShowEditProject(false)}
           project={project}
           onSuccess={(updated) => {
-            setProject(updated);
             notify.success('Project Updated', `Changes to "${updated.title}" have been saved.`);
             fetchDetail();
           }}

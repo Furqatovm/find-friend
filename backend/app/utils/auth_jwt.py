@@ -49,7 +49,11 @@ def jwt_required(optional=False):
                     return fn(*args, **kwargs)
                 return jsonify({'error': 'Token has expired or is invalid'}), 401
             
-            user = User.query.get(payload['sub'])
+            from sqlalchemy.orm import joinedload
+            user = User.query.options(
+                joinedload(User.profile),
+                joinedload(User.location_pref)
+            ).filter(User.id == payload['sub']).first()
             if not user or not user.is_active:
                 if optional:
                     request.current_user = None

@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/Input';
 import { Textarea } from '@/components/ui/Textarea';
 import { Button } from '@/components/ui/Button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/Select';
+import { uploadFile } from '@/api';
 
 export const CreateProjectPage: React.FC = () => {
   const navigate = useNavigate();
@@ -44,9 +45,11 @@ export const CreateProjectPage: React.FC = () => {
     }
   });
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+
+    // Show immediate local preview
     const reader = new FileReader();
     reader.onload = () => {
       if (reader.result) {
@@ -54,6 +57,16 @@ export const CreateProjectPage: React.FC = () => {
       }
     };
     reader.readAsDataURL(file);
+
+    // Upload to permanent backend storage
+    try {
+      const permanentUrl = await uploadFile(file);
+      setImageUrl(permanentUrl);
+      notify.success('Cover Uploaded', 'Project image saved permanently.');
+    } catch (err: any) {
+      console.error('Project image upload failed:', err);
+      notify.error('Upload Failed', err.response?.data?.error || 'Failed to upload project cover.');
+    }
   };
 
   const onSubmit = async (data: any) => {

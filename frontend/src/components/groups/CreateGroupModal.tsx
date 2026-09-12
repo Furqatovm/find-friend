@@ -6,7 +6,9 @@ import { Textarea } from '@/components/ui/Textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/Select';
 import { Users, Upload, X, Image as ImageIcon, Lock, Globe, Search, Check, UserPlus } from 'lucide-react';
 import { useNotification } from '@/context/NotificationContext';
+import { Spinner } from '@/components/ui/Spinner';
 import { api } from '@/lib/api';
+import { uploadFile } from '@/api';
 
 interface CreateGroupModalProps {
   isOpen: boolean;
@@ -77,9 +79,11 @@ export const CreateGroupModal: React.FC<CreateGroupModalProps> = ({
     }
   }, [isOpen]);
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+
+    // Show immediate local preview
     const reader = new FileReader();
     reader.onload = () => {
       if (reader.result) {
@@ -87,6 +91,16 @@ export const CreateGroupModal: React.FC<CreateGroupModalProps> = ({
       }
     };
     reader.readAsDataURL(file);
+
+    // Upload to permanent backend storage
+    try {
+      const permanentUrl = await uploadFile(file);
+      setAvatarUrl(permanentUrl);
+      notify.success('Avatar Uploaded', 'Group avatar saved permanently.');
+    } catch (err: any) {
+      console.error('Group avatar upload failed:', err);
+      notify.error('Upload Failed', err.response?.data?.error || 'Failed to upload group avatar.');
+    }
   };
 
   const toggleMember = (id: string) => {
@@ -333,7 +347,10 @@ export const CreateGroupModal: React.FC<CreateGroupModalProps> = ({
               {/* People List */}
               <div className="max-h-[180px] overflow-y-auto space-y-1 pr-1">
                 {loadingPeople ? (
-                  <div className="p-4 text-center text-[11px] text-neutral-500 dark:text-[#8A8A8A]">Loading your connections...</div>
+                  <div className="p-4 flex items-center justify-center gap-2 text-xs text-[#8A8A8A]">
+                    <Spinner size="sm" />
+                    <span>Loading connections...</span>
+                  </div>
                 ) : filteredPeople.length === 0 ? (
                   <div className="p-4 text-center text-[11px] text-neutral-500 dark:text-[#8A8A8A]">
                     {myPeople.length === 0

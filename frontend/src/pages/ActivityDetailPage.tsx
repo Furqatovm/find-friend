@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import {
   Calendar,
@@ -9,6 +9,7 @@ import {
   MessageSquare,
   ArrowRight
 } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { useAuth } from '@/context/AuthContext';
 import { useNotification } from '@/context/NotificationContext';
@@ -16,6 +17,7 @@ import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { Card } from '@/components/ui/Card';
 import { getCategoryBadgeColor, getInitials } from '@/lib/utils';
+import { PageSpinner } from '@/components/ui/Spinner';
 import type { Activity } from '@/types';
 
 export const ActivityDetailPage: React.FC = () => {
@@ -24,27 +26,18 @@ export const ActivityDetailPage: React.FC = () => {
   const navigate = useNavigate();
   const { notify } = useNotification();
 
-  const [activity, setActivity] = useState<Activity | null>(null);
-  const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
   const [chatLoading, setChatLoading] = useState(false);
 
-  const fetchDetail = async () => {
-    if (!id) return;
-    setLoading(true);
-    try {
+  const { data: activity, isLoading: loading, refetch: fetchDetail } = useQuery<Activity | null>({
+    queryKey: ['activity', id],
+    queryFn: async () => {
       const res = await api.get(`/activities/${id}`);
-      setActivity(res.data);
-    } catch (err) {
-      console.error('Failed to load activity detail', err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchDetail();
-  }, [id]);
+      return res.data;
+    },
+    enabled: !!id,
+    staleTime: 1000 * 60 * 5
+  });
 
   const handleToggleJoin = async () => {
     if (!activity) return;
@@ -93,11 +86,7 @@ export const ActivityDetailPage: React.FC = () => {
   };
 
   if (loading) {
-    return (
-      <div className="max-w-4xl mx-auto px-4 py-16 text-center text-neutral-500 dark:text-[#8A8A8A]">
-        <p className="text-xs">Loading activity details...</p>
-      </div>
-    );
+    return <PageSpinner text="Loading activity..." />;
   }
 
   if (!activity) {

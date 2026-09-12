@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Bell, Check, ArrowRight, UserPlus, X } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { Button } from '@/components/ui/Button';
 import { EmptyState } from '@/components/common/EmptyState';
@@ -23,41 +24,42 @@ interface PendingRequest {
 
 export const NotificationsPage: React.FC = () => {
   const navigate = useNavigate();
-  const { notify } = useNotification();
+  const { notify, refreshNotifications, markAllRead } = useNotification();
 
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [pendingRequests, setPendingRequests] = useState<PendingRequest[]>([]);
-  const [loading, setLoading] = useState(true);
   const [respondingId, setRespondingId] = useState<string | null>(null);
 
-  const fetchData = async () => {
-    setLoading(true);
-    try {
+  const { data: pageData, isLoading: loading, refetch: fetchData } = useQuery({
+    queryKey: ['notificationsPage'],
+    queryFn: async () => {
       const [notifsRes, connRes] = await Promise.allSettled([
         api.get('/notifications'),
         api.get('/connections')
       ]);
 
-      if (notifsRes.status === 'fulfilled') {
-        setNotifications(notifsRes.value.data.notifications || []);
-      }
-      if (connRes.status === 'fulfilled') {
-        setPendingRequests(connRes.value.data.pending_incoming || []);
-      }
-    } catch (err) {
-      console.error('Failed to load notifications or connections', err);
-    } finally {
-      setLoading(false);
-    }
-  };
+      const notifs: Notification[] = notifsRes.status === 'fulfilled' ? notifsRes.value.data.notifications || [] : [];
+      const conns: PendingRequest[] = connRes.status === 'fulfilled' ? connRes.value.data.pending_incoming || [] : [];
+
+      return {
+        notifications: notifs,
+        pendingRequests: conns
+      };
+    },
+    staleTime: 1000 * 60 * 2
+  });
 
   useEffect(() => {
-    fetchData();
-  }, []);
+    if (pageData) {
+      setNotifications(pageData.notifications);
+      setPendingRequests(pageData.pendingRequests);
+      refreshNotifications(true);
+    }
+  }, [pageData]);
 
   const handleMarkAllRead = async () => {
     try {
-      await api.post('/notifications/read-all');
+      await markAllRead();
       setNotifications((prev) => prev.map((n) => ({ ...n, is_read: true })));
     } catch (err) {
       console.error('Failed to mark all read', err);

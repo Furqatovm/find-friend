@@ -7,6 +7,7 @@ import {
   Rocket,
   MessageSquare
 } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { UserCard } from '@/components/cards/UserCard';
 import { ActivityCard } from '@/components/cards/ActivityCard';
@@ -16,52 +17,48 @@ import { EmptyState } from '@/components/common/EmptyState';
 import { UserCardSkeleton } from '@/components/ui/Skeleton';
 import type { Activity, Project, Group } from '@/types';
 
+interface SearchResults {
+  users: any[];
+  activities: Activity[];
+  projects: Project[];
+  groups: Group[];
+  tags: { type: string; name: string; category: string }[];
+}
+
 export const SearchPage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const queryParam = searchParams.get('q') || '';
 
   const [searchTerm, setSearchTerm] = useState(queryParam);
   const [activeTab, setActiveTab] = useState<'all' | 'users' | 'activities' | 'projects' | 'groups'>('all');
-  const [loading, setLoading] = useState(false);
-  const [results, setResults] = useState<{
-    users: any[];
-    activities: Activity[];
-    projects: Project[];
-    groups: Group[];
-    tags: { type: string; name: string; category: string }[];
-  }>({
+
+  const { data: searchData, isLoading: loading } = useQuery<SearchResults>({
+    queryKey: ['search', queryParam.trim()],
+    queryFn: async ({ signal }) => {
+      if (!queryParam.trim()) return { users: [], activities: [], projects: [], groups: [], tags: [] };
+      const res = await api.get('/search', { params: { q: queryParam.trim(), limit: 20 }, signal });
+      return res.data;
+    },
+    enabled: !!queryParam.trim(),
+    staleTime: 1000 * 60 * 5
+  });
+
+  const results: SearchResults = searchData || {
     users: [],
     activities: [],
     projects: [],
     groups: [],
     tags: []
-  });
-
-  const performSearch = async (term: string) => {
-    if (!term.trim()) return;
-    setLoading(true);
-    try {
-      const res = await api.get('/search', { params: { q: term.trim(), limit: 20 } });
-      setResults(res.data);
-    } catch (err) {
-      console.error('Search failed', err);
-    } finally {
-      setLoading(false);
-    }
   };
 
   useEffect(() => {
-    if (queryParam) {
-      setSearchTerm(queryParam);
-      performSearch(queryParam);
-    }
+    setSearchTerm(queryParam);
   }, [queryParam]);
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (searchTerm.trim()) {
       setSearchParams({ q: searchTerm.trim() });
-      performSearch(searchTerm.trim());
     }
   };
 

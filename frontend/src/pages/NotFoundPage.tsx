@@ -1,28 +1,24 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Compass, ArrowRight } from 'lucide-react';
-import { Button } from '@/components/ui/Button';
+import { Home } from 'lucide-react';
 
 export const NotFoundPage: React.FC = () => {
   return (
-    <div className="min-h-[70vh] flex items-center justify-center px-4 py-16 text-center text-neutral-900 dark:text-white transition-colors duration-200">
-      <div className="max-w-md space-y-4">
-        <div className="w-16 h-16 rounded-2xl bg-white dark:bg-[#0F0F0F] border border-neutral-200 dark:border-[#242424] text-neutral-900 dark:text-white flex items-center justify-center mx-auto shadow-sm">
-          <Compass className="w-8 h-8" />
-        </div>
-        <h1 className="text-3xl font-black text-neutral-900 dark:text-white tracking-tight">PAGE NOT FOUND</h1>
-        <p className="text-xs sm:text-sm text-neutral-500 dark:text-[#8A8A8A]">
-          The page you are looking for doesn't exist or has been moved.
-        </p>
-        <div className="pt-2">
-          <Link to="/discover">
-            <Button variant="primary" size="md" className="font-bold">
-              Explore Discover
-              <ArrowRight className="w-4 h-4 ml-1" />
-            </Button>
-          </Link>
-        </div>
+    <div className="min-h-screen bg-[#000] flex flex-col items-center justify-center px-4 text-center">
+      <div className="mb-8">
+        <span className="text-8xl font-black text-[#1A1A1A]">404</span>
       </div>
+      <h1 className="text-2xl font-bold text-white mb-2">Page not found</h1>
+      <p className="text-sm text-[#8A8A8A] mb-8 max-w-xs">
+        The page you're looking for doesn't exist or has been moved.
+      </p>
+      <Link
+        to="/dashboard"
+        className="inline-flex items-center gap-2 px-5 py-2.5 rounded-[10px] bg-[#FFAA2B] hover:bg-[#FFB83D] text-black font-semibold text-sm transition-all"
+      >
+        <Home className="w-4 h-4" />
+        Back to Home
+      </Link>
     </div>
   );
 };

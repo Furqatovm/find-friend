@@ -15,6 +15,7 @@ import { useLocation } from '@/context/LocationContext';
 import { api } from '@/lib/api';
 import { Button } from '@/components/ui/Button';
 import { getInitials } from '@/lib/utils';
+import { uploadFile } from '@/api';
 
 interface ChatMessage {
   id: string;
@@ -53,9 +54,11 @@ export const OnboardingPage: React.FC = () => {
     'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=300&auto=format&fit=crop&q=80'
   ];
 
-  const handleAvatarUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+
+    // Show immediate local preview
     const reader = new FileReader();
     reader.onload = () => {
       if (reader.result) {
@@ -63,6 +66,14 @@ export const OnboardingPage: React.FC = () => {
       }
     };
     reader.readAsDataURL(file);
+
+    // Upload to permanent backend storage
+    try {
+      const permanentUrl = await uploadFile(file);
+      setAvatarUrl(permanentUrl);
+    } catch (err: any) {
+      console.error('Avatar upload failed:', err);
+    }
   };
 
   const [extractedProfile, setExtractedProfile] = useState<{

@@ -1,10 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { MapPin, UserPlus, MessageSquare, Clock, Check, Sparkles } from 'lucide-react';
-import { Card } from '../ui/Card';
-import { Button } from '../ui/Button';
+import { MapPin, UserPlus, MessageSquare, Clock, Check } from 'lucide-react';
 import { CompatibilityBadge } from '../common/CompatibilityBadge';
-import { SkillBadge } from '../common/SkillBadge';
 import { getInitials } from '@/lib/utils';
 import { api } from '@/lib/api';
 import { useAuth } from '@/context/AuthContext';
@@ -22,7 +19,6 @@ export const UserCard: React.FC<UserCardProps> = ({ user, onConnectSuccess, onFo
   const [connStatus, setConnStatus] = useState(user.connection?.status || 'none');
   const [isFollowing, setIsFollowing] = useState(user.is_following || false);
   const [loading, setLoading] = useState(false);
-  const [followLoading, setFollowLoading] = useState(false);
 
   useEffect(() => {
     setConnStatus(user.connection?.status || 'none');
@@ -34,187 +30,163 @@ export const UserCard: React.FC<UserCardProps> = ({ user, onConnectSuccess, onFo
   const handleConnect = async (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-
     if (isSelf) return;
-
     if (connStatus === 'accepted') {
       try {
         const res = await api.post('/conversations', { recipient_id: user.id });
         navigate(`/messages/${res.data.id}`);
-      } catch (err) {
+      } catch {
         navigate('/messages');
       }
       return;
     }
-
     if (connStatus === 'pending') return;
-
-    // 1. Instant optimistic state update on frontend
-    const previousStatus = connStatus;
+    const prev = connStatus;
     setConnStatus('pending');
-
-    // 2. Background backend persistence
+    setLoading(true);
     try {
       await api.post('/connections', { addressee_id: user.id });
       if (onConnectSuccess) onConnectSuccess();
     } catch (err: any) {
-      const errMsg = err.response?.data?.error || '';
-      console.error('Failed to send connect request', errMsg);
-      if (errMsg.toLowerCase().includes('already')) {
-        if (errMsg.toLowerCase().includes('connected')) {
-          setConnStatus('accepted');
-        } else {
-          setConnStatus('pending');
-        }
+      const msg = err.response?.data?.error || '';
+      if (msg.toLowerCase().includes('already')) {
+        setConnStatus(msg.toLowerCase().includes('connected') ? 'accepted' : 'pending');
       } else {
-        // Rollback on unexpected error
-        setConnStatus(previousStatus);
+        setConnStatus(prev);
       }
       if (onConnectSuccess) onConnectSuccess();
+    } finally {
+      setLoading(false);
     }
   };
 
   const handleToggleFollow = async (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-
     if (isSelf) return;
-
-    // 1. Instant optimistic state update on frontend
-    const newFollowingState = !isFollowing;
-    setIsFollowing(newFollowingState);
-
-    // 2. Background backend persistence
+    const next = !isFollowing;
+    setIsFollowing(next);
     try {
       const res = await api.post(`/users/${user.id}/follow`);
       setIsFollowing(res.data.is_following);
       if (onFollowSuccess) onFollowSuccess();
-    } catch (err) {
-      console.error('Failed to toggle follow', err);
-      // Rollback on error
-      setIsFollowing(!newFollowingState);
+    } catch {
+      setIsFollowing(!next);
     }
   };
 
+  // Top interest/skill tags
+  const tags =
+    user.interests?.slice(0, 3).map((i) => i.name) ||
+    user.skills?.slice(0, 3).map((s) => s.name) ||
+    [];
+
   return (
-    <Card hover className="flex flex-col justify-between h-full group">
-      <div>
-        {/* Header with Avatar & Compatibility Badge */}
-        <div className="flex items-start justify-between gap-3 mb-3.5">
-          <Link to={`/users/${user.id}`} className="flex items-center gap-3">
-            {user.avatar_url ? (
-              <img
-                src={user.avatar_url}
-                alt={user.display_name}
-                className="w-12 h-12 rounded-full object-cover border border-neutral-300 dark:border-[#292929] group-hover:border-neutral-500 dark:group-hover:border-white/40 transition-colors"
-              />
-            ) : (
-              <div className="w-12 h-12 rounded-full bg-neutral-200 text-neutral-900 dark:bg-[#1A1A1A] dark:text-white border border-neutral-300 dark:border-[#292929] flex items-center justify-center font-bold text-sm">
-                {getInitials(user.display_name)}
-              </div>
-            )}
-            <div>
-              <h4 className="font-bold text-neutral-900 dark:text-white text-sm transition-colors flex items-center gap-1.5">
-                {user.display_name}
-              </h4>
-              <p className="text-xs text-neutral-500 dark:text-[#8A8A8A] line-clamp-1 font-mono">{user.headline || `@${user.username}`}</p>
-            </div>
-          </Link>
-
-          {user.compatibility && (
-            <CompatibilityBadge compatibility={user.compatibility} size="sm" />
-          )}
-        </div>
-
-        {/* Bio */}
-        {user.bio && (
-          <p className="text-xs text-neutral-600 dark:text-[#D4D4D4] line-clamp-2 mb-3 leading-relaxed">
-            {user.bio}
-          </p>
-        )}
-
-        {/* Shared Interests & Goals */}
-        <div className="space-y-1.5 mb-4">
-          {user.compatibility && user.compatibility.shared_interests.length > 0 && (
-            <div className="text-[11px] text-neutral-500 dark:text-[#8A8A8A]">
-              <span className="text-neutral-900 dark:text-white font-medium">Common: </span>
-              <span className="text-neutral-700 dark:text-[#D4D4D4]">{user.compatibility.shared_interests.slice(0, 3).join(' · ')}</span>
-            </div>
-          )}
-
-          {user.looking_for_summary && (
-            <div className="text-[11px] text-neutral-500 dark:text-[#8A8A8A]">
-              <span className="text-amber-600 dark:text-amber-400 font-medium">Goal: </span>
-              <span className="text-neutral-700 dark:text-[#D4D4D4]">{user.looking_for_summary}</span>
-            </div>
-          )}
-
-          {/* Skill tags */}
-          {user.skills && user.skills.length > 0 && (
-            <div className="flex flex-wrap gap-1.5 pt-1">
-              {user.skills.slice(0, 3).map((s, idx) => (
-                <SkillBadge key={idx} skill={s} size="sm" />
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Footer with Distance and Action Buttons */}
-      <div className="pt-3 border-t border-neutral-200 dark:border-[#242424] flex items-center justify-between gap-2 mt-auto">
-        <div className="flex items-center gap-1 text-[11px] text-neutral-500 dark:text-[#8A8A8A] truncate">
-          <MapPin className="w-3 h-3 shrink-0 text-neutral-400 dark:text-[#5C5C5C]" />
-          <span className="truncate">{user.city ? `${user.city} · ` : ''}{user.distance_bucket || '~Nearby'}</span>
-        </div>
-
-        <div className="flex items-center gap-1.5 shrink-0">
-          {!isSelf && (
-            <button
-              type="button"
-              onClick={handleToggleFollow}
-              disabled={followLoading}
-              title={isFollowing ? "Unfollow" : "Follow"}
-              className={`px-2.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1 shadow-xs ${
-                isFollowing
-                  ? 'bg-neutral-100 text-neutral-800 hover:bg-neutral-200 border border-neutral-300 dark:bg-[#141414] dark:text-[#D4D4D4] dark:border-[#242424]'
-                  : 'bg-neutral-100 text-neutral-900 hover:bg-neutral-200 border border-neutral-300 dark:bg-[#1F1F1F] dark:text-white dark:border-[#2E2E2E]'
-              }`}
-            >
-              {isFollowing ? (
-                <>
-                  <Check className="w-3 h-3 text-amber-500 dark:text-amber-400" />
-                  <span>Following</span>
-                </>
-              ) : (
-                <span>+ Follow</span>
-              )}
-            </button>
-          )}
-
-          {isSelf ? (
-            <Link to={`/users/${user.id}`}>
-              <Button variant="outline" size="sm" className="text-xs font-bold">
-                My Profile
-              </Button>
-            </Link>
-          ) : connStatus === 'accepted' ? (
-            <Button variant="outline" size="sm" onClick={handleConnect} className="text-xs font-bold">
-              <MessageSquare className="w-3.5 h-3.5 mr-1" />
-              Chat
-            </Button>
-          ) : connStatus === 'pending' ? (
-            <Button variant="secondary" size="sm" disabled className="text-xs text-neutral-500 dark:text-[#8A8A8A]">
-              <Clock className="w-3.5 h-3.5 mr-1 text-amber-500 dark:text-amber-400" />
-              Pending
-            </Button>
+    <div className="group bg-[#141414] border border-[#292929] rounded-[12px] p-4 flex flex-col gap-3 transition-all duration-200 hover:border-[#383838] hover:-translate-y-px hover:bg-[#161616]">
+      {/* Header: Avatar + Name + Compatibility */}
+      <div className="flex items-start gap-3">
+        <Link to={`/users/${user.id}`} className="shrink-0">
+          {user.avatar_url ? (
+            <img
+              src={user.avatar_url}
+              alt={user.display_name}
+              className="w-11 h-11 rounded-full object-cover border border-[#2E2E2E] group-hover:border-[#444] transition-colors"
+            />
           ) : (
-            <Button variant="primary" size="sm" loading={loading} onClick={handleConnect} className="text-xs font-bold">
-              <UserPlus className="w-3.5 h-3.5 mr-1" />
-              Connect
-            </Button>
+            <div className="w-11 h-11 rounded-full bg-[#1A1A1A] border border-[#2E2E2E] flex items-center justify-center font-bold text-sm text-white">
+              {getInitials(user.display_name)}
+            </div>
+          )}
+        </Link>
+
+        <div className="flex-1 min-w-0">
+          <Link to={`/users/${user.id}`}>
+            <h4 className="font-semibold text-white text-sm leading-tight truncate hover:text-[#FFAA2B] transition-colors">
+              {user.display_name}
+            </h4>
+          </Link>
+          <p className="text-xs text-[#8A8A8A] truncate mt-0.5">
+            {user.headline || `@${user.username}`}
+          </p>
+          {(user.city || user.distance_bucket) && (
+            <div className="flex items-center gap-1 mt-1">
+              <MapPin className="w-3 h-3 text-[#555] shrink-0" />
+              <span className="text-[11px] text-[#666] truncate">
+                {user.city || ''}{user.distance_bucket ? ` · ${user.distance_bucket}` : ''}
+              </span>
+            </div>
           )}
         </div>
+
+        {/* Compatibility badge */}
+        {user.compatibility && (
+          <div className="shrink-0">
+            <CompatibilityBadge compatibility={user.compatibility} size="sm" />
+          </div>
+        )}
       </div>
-    </Card>
+
+      {/* Interest tags */}
+      {tags.length > 0 && (
+        <div className="flex flex-wrap gap-1.5">
+          {tags.map((tag, i) => (
+            <span
+              key={i}
+              className="px-2 py-0.5 rounded-[5px] bg-[#1A1A1A] border border-[#2A2A2A] text-[11px] text-[#D4D4D4] font-medium"
+            >
+              {tag}
+            </span>
+          ))}
+        </div>
+      )}
+
+      {/* Shared interest hint */}
+      {user.compatibility?.shared_interests && user.compatibility.shared_interests.length > 0 && (
+        <p className="text-[11px] text-[#666]">
+          <span className="text-[#8A8A8A]">Common: </span>
+          {user.compatibility.shared_interests.slice(0, 3).join(' · ')}
+        </p>
+      )}
+
+      {/* Action buttons */}
+      <div className="flex items-center gap-2 mt-auto pt-1">
+        <Link
+          to={`/users/${user.id}`}
+          className="flex-1 flex items-center justify-center h-8 rounded-[8px] border border-[#292929] hover:border-[#3D3D3D] text-[#D4D4D4] hover:text-white hover:bg-[#1A1A1A] text-xs font-medium transition-all"
+        >
+          View
+        </Link>
+
+        {isSelf ? null : connStatus === 'accepted' ? (
+          <button
+            type="button"
+            onClick={handleConnect}
+            className="flex-1 flex items-center justify-center gap-1.5 h-8 rounded-[8px] border border-[#292929] hover:border-[#3D3D3D] text-[#D4D4D4] hover:text-white hover:bg-[#1A1A1A] text-xs font-medium transition-all cursor-pointer"
+          >
+            <MessageSquare className="w-3.5 h-3.5" />
+            Chat
+          </button>
+        ) : connStatus === 'pending' ? (
+          <button
+            type="button"
+            disabled
+            className="flex-1 flex items-center justify-center gap-1.5 h-8 rounded-[8px] bg-[#1A1A1A] border border-[#2A2A2A] text-[#666] text-xs font-medium cursor-not-allowed"
+          >
+            <Clock className="w-3.5 h-3.5 text-[#FFAA2B]" />
+            Pending
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={handleConnect}
+            disabled={loading}
+            className="flex-1 flex items-center justify-center gap-1.5 h-8 rounded-[8px] bg-[#FFAA2B] hover:bg-[#FFB83D] active:bg-[#FF9C1A] text-black text-xs font-semibold transition-all cursor-pointer disabled:opacity-60"
+          >
+            <UserPlus className="w-3.5 h-3.5" />
+            Connect
+          </button>
+        )}
+      </div>
+    </div>
   );
 };

@@ -10,7 +10,7 @@ class Profile(db.Model):
     display_name = db.Column(db.String(100), nullable=False)
     headline = db.Column(db.String(150), nullable=True)
     bio = db.Column(db.Text, nullable=True)
-    avatar_url = db.Column(db.String(500), nullable=True)
+    avatar_url = db.Column(db.Text, nullable=True)
     
     city = db.Column(db.String(100), nullable=True)
     country = db.Column(db.String(100), nullable=True)
@@ -62,16 +62,16 @@ class LocationPreference(db.Model):
     id = db.Column(db.String(36), primary_key=True, default=generate_uuid)
     user_id = db.Column(db.String(36), db.ForeignKey('users.id', ondelete='CASCADE'), unique=True, nullable=False)
     
-    location_enabled = db.Column(db.Boolean, default=False)
+    location_enabled = db.Column(db.Boolean, default=False, index=True)
     # Stored fuzzed/approximate coordinates (never raw precise GPS)
-    approx_latitude = db.Column(db.Float, nullable=True)
-    approx_longitude = db.Column(db.Float, nullable=True)
+    approx_latitude = db.Column(db.Float, nullable=True, index=True)
+    approx_longitude = db.Column(db.Float, nullable=True, index=True)
     fuzzed_latitude = db.Column(db.Float, nullable=True)
     fuzzed_longitude = db.Column(db.Float, nullable=True)
     geohash_prefix = db.Column(db.String(12), nullable=True)
     
     discovery_radius_km = db.Column(db.Integer, default=25)
-    show_on_nearby = db.Column(db.Boolean, default=True)
+    show_on_nearby = db.Column(db.Boolean, default=True, index=True)
     show_distance = db.Column(db.Boolean, default=True)
     show_city = db.Column(db.Boolean, default=True)
 

@@ -1,89 +1,88 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Users, Plus } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
-import { api } from '@/lib/api';
+import { getGroups } from '@/api';
 import { GroupCard } from '@/components/cards/GroupCard';
-import { Button } from '@/components/ui/Button';
 import { EmptyState } from '@/components/common/EmptyState';
 import { UserCardSkeleton } from '@/components/ui/Skeleton';
 import type { Group } from '@/types';
 import { CreateGroupModal } from '@/components/groups/CreateGroupModal';
 
+const CATEGORIES = ['All', 'Study', 'Startups', 'Languages', 'Gaming', 'Learning'];
+
 export const GroupsPage: React.FC = () => {
   const [category, setCategory] = useState('All');
   const [showCreateModal, setShowCreateModal] = useState(false);
 
-  const { data: groups = [], isLoading: loading, refetch: fetchGroups } = useQuery<Group[]>({
+  const { data: groups = [], isLoading, refetch } = useQuery<Group[]>({
     queryKey: ['groups', category],
-    queryFn: async () => {
-      const params: any = {};
-      if (category !== 'All') params.category = category;
-
-      const res = await api.get('/groups', { params });
-      return res.data || [];
-    }
+    queryFn: ({ signal }) => getGroups({ category }, signal),
   });
 
-  const categories = ['All', 'Study', 'Startups', 'Languages', 'Gaming', 'Learning'];
-
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-8 text-neutral-900 dark:text-white transition-colors duration-200">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-black text-neutral-900 dark:text-white tracking-tight">COMMUNITY GUILDS</h1>
-          <p className="text-xs text-neutral-500 dark:text-[#8A8A8A] mt-1">
-            Join interest-based groups, share knowledge, and collaborate in real-time.
-          </p>
-        </div>
-
-        <Button variant="primary" size="md" onClick={() => setShowCreateModal(true)} className="font-bold">
-          <Plus className="w-4 h-4 mr-1.5" />
-          Create Community Guild
-        </Button>
-      </div>
-
-      <div className="bg-white dark:bg-[#0F0F0F] border border-neutral-200 dark:border-[#242424] rounded-2xl p-4 flex items-center gap-2 overflow-x-auto no-scrollbar shadow-sm">
-        {categories.map((c) => (
+    <div className="min-h-screen bg-[#000]">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+        {/* Header */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-bold text-white">Groups</h1>
+            <p className="text-xs text-[#555] mt-1">
+              Join interest-based groups, share knowledge, and collaborate
+            </p>
+          </div>
           <button
-            key={c}
             type="button"
-            onClick={() => setCategory(c)}
-            className={`px-3.5 py-1.5 rounded-xl text-xs font-bold border transition-all cursor-pointer whitespace-nowrap shadow-xs ${
-              category === c
-                ? 'bg-neutral-900 text-white border-neutral-900 dark:bg-white dark:text-black dark:border-white'
-                : 'bg-neutral-100 text-neutral-600 hover:text-neutral-900 border-neutral-200 dark:bg-[#141414] dark:border-[#242424] dark:text-[#8A8A8A] dark:hover:text-white'
-            }`}
+            onClick={() => setShowCreateModal(true)}
+            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-[10px] bg-[#FFAA2B] hover:bg-[#FFB83D] text-black text-sm font-bold transition-all shrink-0 cursor-pointer"
           >
-            {c}
+            <Plus className="w-4 h-4" />
+            Create Group
           </button>
-        ))}
-      </div>
+        </div>
 
-      {loading ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-          {[1, 2, 3].map((i) => (
-            <UserCardSkeleton key={i} />
+        {/* Category pills */}
+        <div className="flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar">
+          {CATEGORIES.map((cat) => (
+            <button
+              key={cat}
+              type="button"
+              onClick={() => setCategory(cat)}
+              className={`px-3.5 py-1.5 rounded-[20px] text-xs font-semibold whitespace-nowrap transition-all cursor-pointer border ${
+                category === cat
+                  ? 'bg-[#FFAA2B] text-black border-[#FFAA2B]'
+                  : 'bg-transparent text-[#8A8A8A] border-[#292929] hover:text-white hover:border-[#3D3D3D]'
+              }`}
+            >
+              {cat}
+            </button>
           ))}
         </div>
-      ) : groups.length === 0 ? (
-        <EmptyState
-          icon={<Users className="w-8 h-8 text-neutral-400 dark:text-[#5C5C5C]" />}
-          title="No groups found"
-          description="Check back soon or explore other categories!"
+
+        {/* Grid */}
+        {isLoading ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {[1, 2, 3].map((i) => <UserCardSkeleton key={i} />)}
+          </div>
+        ) : groups.length === 0 ? (
+          <EmptyState
+            icon={<Users className="w-8 h-8 text-[#555]" />}
+            title="No groups found"
+            description="Check back soon or explore other categories!"
+          />
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {groups.map((group) => (
+              <GroupCard key={group.id} group={group} onUpdate={refetch} />
+            ))}
+          </div>
+        )}
+
+        <CreateGroupModal
+          isOpen={showCreateModal}
+          onClose={() => setShowCreateModal(false)}
+          onSuccess={refetch}
         />
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-          {groups.map((group) => (
-            <GroupCard key={group.id} group={group} onUpdate={fetchGroups} />
-          ))}
-        </div>
-      )}
-
-      <CreateGroupModal
-        isOpen={showCreateModal}
-        onClose={() => setShowCreateModal(false)}
-        onSuccess={fetchGroups}
-      />
+      </div>
     </div>
   );
 };

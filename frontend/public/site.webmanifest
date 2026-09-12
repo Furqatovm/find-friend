@@ -1,0 +1,22 @@
+{
+  "name": "WithMe — Find Friends & Project Teammates",
+  "short_name": "WithMe",
+  "description": "Connect with verified peers around shared interests, study goals, coding sprints, and projects.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#000000",
+  "theme_color": "#000000",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/logo512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

@@ -6,8 +6,12 @@ from ..models.notification_and_safety import Notification
 
 class GroupService:
     @staticmethod
-    def get_all(category=None, search=None, current_user_id=None):
-        query = Group.query
+    def get_all(category=None, search=None, current_user_id=None, limit=30):
+        from sqlalchemy.orm import joinedload, selectinload
+        query = Group.query.options(
+            joinedload(Group.creator).joinedload(User.profile),
+            selectinload(Group.members).joinedload(GroupMember.user).joinedload(User.profile)
+        )
         if category and category.lower() != 'all':
             query = query.filter(Group.category.ilike(f"%{category}%"))
         if search:
@@ -16,16 +20,21 @@ class GroupService:
                 (Group.description.ilike(f"%{search}%"))
             )
         
-        groups = query.order_by(Group.created_at.desc()).all()
-        return [g.to_dict(current_user_id) for g in groups]
+        groups = query.order_by(Group.created_at.desc()).limit(limit).all()
+        return [g.to_dict(current_user_id, include_messages=False) for g in groups]
 
     @staticmethod
     def get_by_id(group_id: str, current_user_id: str = None):
-        group = Group.query.get(group_id)
+        from sqlalchemy.orm import joinedload, selectinload
+        group = Group.query.options(
+            joinedload(Group.creator).joinedload(User.profile),
+            selectinload(Group.members).joinedload(GroupMember.user).joinedload(User.profile),
+            selectinload(Group.messages).joinedload(GroupMessage.author).joinedload(User.profile)
+        ).filter(Group.id == group_id).first()
         if not group:
             return None
         
-        data = group.to_dict(current_user_id)
+        data = group.to_dict(current_user_id, include_messages=True)
         data['messages'] = [m.to_dict(current_user_id) for m in group.messages]
         return data
 
@@ -79,10 +88,11 @@ class GroupService:
             
         existing = GroupMember.query.filter_by(group_id=group_id, user_id=user.id).first()
         if existing:
-            return None, "Already a member of this group"
+            # Idempotent join: user is already a member
+            return group.to_dict(user.id), None
 
-        # Private group restriction: must be connected or followed by creator
-        if group.is_private:
+        # Private group restriction: creator is exempt; others must be connected or follow
+        if group.is_private and group.creator_id != user.id:
             creator_id = group.creator_id
 
             is_connected = Connection.query.filter(
@@ -122,7 +132,8 @@ class GroupService:
             
         member = GroupMember.query.filter_by(group_id=group_id, user_id=user_id).first()
         if not member:
-            return False, "Not a member"
+            # Idempotent leave: already not a member
+            return True, None
             
         db.session.delete(member)
         db.session.commit()

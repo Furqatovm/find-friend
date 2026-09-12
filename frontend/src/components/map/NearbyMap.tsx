@@ -1,36 +1,49 @@
 import React, { useEffect, useState } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, Circle, useMap } from 'react-leaflet';
 import L from 'leaflet';
-import type { UserCardData } from '@/types';
+import 'leaflet/dist/leaflet.css';
+import type { UserCardData, Activity } from '@/types';
 import { CompatibilityBadge } from '../common/CompatibilityBadge';
 import { Button } from '../ui/Button';
 import { Link } from 'react-router-dom';
 import { useTheme } from '@/context/ThemeContext';
+import { Calendar, MapPin, Users } from 'lucide-react';
+
+// Fix Leaflet's default icon assets for Vite / modern bundlers
+delete (L.Icon.Default.prototype as any)._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
+  iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
+  shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+});
 
 interface NearbyMapProps {
   users: UserCardData[];
+  activities?: Activity[];
+  activeTab?: 'people' | 'activities';
   centerLat: number;
   centerLon: number;
   radiusKm?: number;
   onSelectUser?: (user: UserCardData) => void;
+  onSelectActivity?: (activity: Activity) => void;
 }
 
-// Custom Leaflet DivIcon for privacy-fuzzed user avatars
+// Custom Leaflet DivIcon for user avatars
 const createUserIcon = (avatarUrl?: string, name?: string, isMe?: boolean, isDark?: boolean) => {
   const initials = name ? name.slice(0, 2).toUpperCase() : 'U';
-  const borderColor = isMe ? '#F59E0B' : isDark ? '#FFFFFF' : '#111827';
+  const borderColor = isMe ? '#FFAA2B' : isDark ? '#FFFFFF' : '#111827';
   const bgColor = isDark ? '#0F0F0F' : '#FFFFFF';
   const textColor = isDark ? '#FFFFFF' : '#111827';
 
   const html = `
     <div style="
       position: relative;
-      width: 36px;
-      height: 36px;
+      width: 38px;
+      height: 38px;
       border-radius: 50%;
       background: ${bgColor};
       border: 2px solid ${borderColor};
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.5);
       display: flex;
       align-items: center;
       justify-content: center;
@@ -39,7 +52,7 @@ const createUserIcon = (avatarUrl?: string, name?: string, isMe?: boolean, isDar
       transform: translate(-50%, -50%);
     ">
       ${avatarUrl
-        ? `<img src="${avatarUrl}" style="width: 100%; height: 100%; object-fit: cover;" />`
+        ? `<img src="${avatarUrl}" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.style.display='none'" />`
         : `<span style="color: ${textColor}; font-weight: 800; font-size: 11px;">${initials}</span>`
       }
     </div>
@@ -48,113 +61,143 @@ const createUserIcon = (avatarUrl?: string, name?: string, isMe?: boolean, isDar
   return L.divIcon({
     html,
     className: 'custom-leaflet-user-icon',
+    iconSize: [38, 38],
+    iconAnchor: [19, 19]
+  });
+};
+
+// Custom Leaflet DivIcon for activities
+const createActivityIcon = (category?: string, isDark?: boolean) => {
+  const html = `
+    <div style="
+      position: relative;
+      width: 36px;
+      height: 36px;
+      border-radius: 10px;
+      background: #FFAA2B;
+      border: 2px solid #FFFFFF;
+      box-shadow: 0 4px 14px rgba(255, 170, 43, 0.4);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #000000;
+      font-weight: 900;
+      font-size: 14px;
+      cursor: pointer;
+      transform: translate(-50%, -50%);
+    ">
+      📍
+    </div>
+  `;
+
+  return L.divIcon({
+    html,
+    className: 'custom-leaflet-activity-icon',
     iconSize: [36, 36],
     iconAnchor: [18, 18]
   });
 };
 
-function ChangeMapView({ center, zoom }: { center: [number, number]; zoom: number }) {
+// Component to handle map center/zoom updates and ensure container size calculation
+function MapController({ center, zoom }: { center: [number, number]; zoom: number }) {
   const map = useMap();
+
   useEffect(() => {
     map.setView(center, zoom);
   }, [center, zoom, map]);
+
+  useEffect(() => {
+    map.invalidateSize();
+    const t1 = setTimeout(() => map.invalidateSize(), 200);
+    const t2 = setTimeout(() => map.invalidateSize(), 600);
+    return () => {
+      clearTimeout(t1);
+      clearTimeout(t2);
+    };
+  }, [map]);
+
   return null;
 }
 
 export const NearbyMap: React.FC<NearbyMapProps> = ({
   users,
+  activities = [],
+  activeTab = 'people',
   centerLat,
   centerLon,
   radiusKm = 25,
-  onSelectUser
+  onSelectUser,
+  onSelectActivity
 }) => {
   const { theme } = useTheme();
   const isDark = theme === 'dark';
-  const defaultCenter: [number, number] = [centerLat || 41.2995, centerLon || 69.2401];
+
+  const safeLat = typeof centerLat === 'number' && !isNaN(centerLat) && centerLat !== 0 ? centerLat : 41.2995;
+  const safeLon = typeof centerLon === 'number' && !isNaN(centerLon) && centerLon !== 0 ? centerLon : 69.2401;
+  const defaultCenter: [number, number] = [safeLat, safeLon];
 
   const [mapStyle, setMapStyle] = useState<'theme' | 'osm' | 'streets' | 'satellite'>('theme');
 
-  // Determine active tile provider (Zero watermark, 100% free open tiles)
   const getTileConfig = () => {
     if (mapStyle === 'satellite') {
       return {
         base: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
-        attribution: '&copy; Esri, Maxar, Earthstar Geographics, and the GIS User Community',
-        overlay: 'https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}'
+        subdomains: 'abc',
+        attribution: '&copy; Esri, Maxar, Earthstar Geographics'
       };
     }
 
-    if (mapStyle === 'streets') {
-      return {
-        base: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}',
-        attribution: '&copy; Esri &mdash; Source: Esri, DeLorme, NAVTEQ, USGS, Intermap, iPC, NRCAN, Esri Japan, METI, Esri China (Hong Kong), Esri (Thailand), TomTom, 2012',
-        overlay: null
-      };
-    }
-
-    if (mapStyle === 'osm') {
+    if (mapStyle === 'streets' || mapStyle === 'osm') {
       return {
         base: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
-        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-        overlay: null
+        subdomains: 'abc',
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
       };
     }
 
-    // Default Theme Adaptive: Dark Canvas in dark mode, World Street/OpenStreetMap in light mode
+    // Default Theme Adaptive: CartoDB Dark in dark mode, Voyager in light mode
     if (isDark) {
       return {
-        base: 'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}',
-        attribution: '&copy; Esri, HERE, Garmin, &copy; OpenStreetMap contributors, and the GIS user community',
-        overlay: 'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Reference/MapServer/tile/{z}/{y}/{x}'
+        base: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png',
+        subdomains: 'abcd',
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>'
       };
     }
 
     return {
-      base: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}',
-      attribution: '&copy; Esri, DeLorme, NAVTEQ, TomTom, OpenStreetMap contributors',
-      overlay: null
+      base: 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png',
+      subdomains: 'abcd',
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>'
     };
   };
 
   const tileConfig = getTileConfig();
+  const calculatedZoom = radiusKm <= 5 ? 14 : radiusKm <= 15 ? 13 : radiusKm <= 30 ? 12 : 11;
 
   return (
-    <div className="w-full h-full min-h-[440px] rounded-2xl overflow-hidden border border-neutral-200 dark:border-[#242424] relative shadow-2xl bg-neutral-100 dark:bg-[#080808]">
-      {/* Map Layer Selector Toolbar */}
-      <div className="absolute top-3 right-3 z-[1000] flex items-center gap-1.5 bg-white/90 dark:bg-[#0F0F0F]/90 backdrop-blur-md border border-neutral-200 dark:border-[#242424] rounded-xl p-1 shadow-lg">
+    <div className="w-full h-full min-h-[460px] rounded-[16px] overflow-hidden border border-[#222222] relative shadow-2xl bg-[#080808]">
+      {/* Map Style Selector Toolbar */}
+      <div className="absolute top-3 right-3 z-[1000] flex items-center gap-1 bg-[#0F0F0F]/90 backdrop-blur-md border border-[#262626] rounded-[10px] p-1 shadow-xl">
         <button
           type="button"
           onClick={() => setMapStyle('theme')}
-          className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+          className={`px-2.5 py-1 rounded-[6px] text-xs font-semibold transition-all cursor-pointer ${
             mapStyle === 'theme'
-              ? 'bg-neutral-900 text-white dark:bg-white dark:text-black shadow-xs'
-              : 'text-neutral-600 hover:text-neutral-900 dark:text-[#8A8A8A] dark:hover:text-white'
+              ? 'bg-[#FFAA2B] text-black shadow-xs font-bold'
+              : 'text-[#8A8A8A] hover:text-white'
           }`}
-          title="Theme Adaptive (Dark Canvas / Crisp Light)"
+          title="Dark / Light theme map"
         >
           {isDark ? '🌙 Dark' : '☀️ Light'}
         </button>
 
         <button
           type="button"
-          onClick={() => setMapStyle('streets')}
-          className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-            mapStyle === 'streets'
-              ? 'bg-neutral-900 text-white dark:bg-white dark:text-black shadow-xs'
-              : 'text-neutral-600 hover:text-neutral-900 dark:text-[#8A8A8A] dark:hover:text-white'
-          }`}
-          title="World Street Map"
-        >
-          Streets
-        </button>
-
-        <button
-          type="button"
           onClick={() => setMapStyle('osm')}
-          className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+          className={`px-2.5 py-1 rounded-[6px] text-xs font-semibold transition-all cursor-pointer ${
             mapStyle === 'osm'
-              ? 'bg-neutral-900 text-white dark:bg-white dark:text-black shadow-xs'
-              : 'text-neutral-600 hover:text-neutral-900 dark:text-[#8A8A8A] dark:hover:text-white'
+              ? 'bg-[#FFAA2B] text-black shadow-xs font-bold'
+              : 'text-[#8A8A8A] hover:text-white'
           }`}
           title="OpenStreetMap Standard"
         >
@@ -164,10 +207,10 @@ export const NearbyMap: React.FC<NearbyMapProps> = ({
         <button
           type="button"
           onClick={() => setMapStyle('satellite')}
-          className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+          className={`px-2.5 py-1 rounded-[6px] text-xs font-semibold transition-all cursor-pointer ${
             mapStyle === 'satellite'
-              ? 'bg-neutral-900 text-white dark:bg-white dark:text-black shadow-xs'
-              : 'text-neutral-600 hover:text-neutral-900 dark:text-[#8A8A8A] dark:hover:text-white'
+              ? 'bg-[#FFAA2B] text-black shadow-xs font-bold'
+              : 'text-[#8A8A8A] hover:text-white'
           }`}
           title="Satellite Imagery"
         >
@@ -176,106 +219,154 @@ export const NearbyMap: React.FC<NearbyMapProps> = ({
       </div>
 
       <MapContainer
-        key={`${theme}-${mapStyle}`}
+        key={`${isDark ? 'dark' : 'light'}-${mapStyle}`}
         center={defaultCenter}
-        zoom={13}
+        zoom={calculatedZoom}
         scrollWheelZoom={true}
-        style={{ width: '100%', height: '100%' }}
+        style={{ width: '100%', height: '100%', minHeight: '460px' }}
       >
-        <ChangeMapView center={defaultCenter} zoom={radiusKm <= 5 ? 14 : radiusKm <= 15 ? 13 : 12} />
-        
-        {/* Base Tile Layer (No watermark) */}
+        <MapController center={defaultCenter} zoom={calculatedZoom} />
+
         <TileLayer
+          key={tileConfig.base}
           attribution={tileConfig.attribution}
           url={tileConfig.base}
+          subdomains={tileConfig.subdomains}
           maxZoom={19}
         />
 
-        {/* Optional Label Reference Overlay Layer */}
-        {tileConfig.overlay && (
-          <TileLayer
-            attribution=""
-            url={tileConfig.overlay}
-            maxZoom={19}
-          />
-        )}
-
-        {/* Current user approximate center pulse circle */}
+        {/* Center Approximate Pulse Circle */}
         <Circle
           center={defaultCenter}
-          radius={1000}
+          radius={Math.max(1000, radiusKm * 200)}
           pathOptions={{
-            color: '#F59E0B',
-            fillColor: '#F59E0B',
-            fillOpacity: 0.1,
+            color: '#FFAA2B',
+            fillColor: '#FFAA2B',
+            fillOpacity: 0.08,
             weight: 1.5,
-            dashArray: '3, 3'
+            dashArray: '4, 4'
           }}
         />
 
-        {/* You marker */}
+        {/* Your Location Marker */}
         <Marker
           position={defaultCenter}
           icon={createUserIcon(undefined, 'You', true, isDark)}
         >
           <Popup>
-            <div className="p-1 text-xs">
-              <p className="font-bold text-amber-500 dark:text-amber-400">Your Approximate Area</p>
-              <p className="text-neutral-500 dark:text-[#8A8A8A] text-[11px] mt-0.5">Exact coordinates shielded for privacy</p>
+            <div className="p-1 text-xs text-black dark:text-white">
+              <p className="font-bold text-[#FFAA2B]">Your Approximate Area</p>
+              <p className="text-[#8A8A8A] text-[11px] mt-0.5">Exact coordinates protected for privacy</p>
             </div>
           </Popup>
         </Marker>
 
-        {/* Nearby candidate users */}
-        {users.map((user) => {
-          if (!user.approx_lat || !user.approx_lon) return null;
-          const pos: [number, number] = [user.approx_lat, user.approx_lon];
+        {/* User Markers (when on People tab or showing both) */}
+        {activeTab === 'people' &&
+          users.map((user) => {
+            const lat = Number(user.approx_lat);
+            const lon = Number(user.approx_lon);
+            if (!lat || !lon || isNaN(lat) || isNaN(lon)) return null;
+            const pos: [number, number] = [lat, lon];
 
-          return (
-            <React.Fragment key={user.id}>
-              {/* Privacy area bubble */}
-              <Circle
-                center={pos}
-                radius={800}
-                pathOptions={{
-                  color: isDark ? '#444444' : '#CBD5E1',
-                  fillColor: isDark ? '#FFFFFF' : '#3B82F6',
-                  fillOpacity: 0.04,
-                  weight: 1
-                }}
-              />
+            return (
+              <React.Fragment key={user.id}>
+                <Circle
+                  center={pos}
+                  radius={800}
+                  pathOptions={{
+                    color: isDark ? '#444444' : '#CBD5E1',
+                    fillColor: isDark ? '#FFAA2B' : '#3B82F6',
+                    fillOpacity: 0.04,
+                    weight: 1
+                  }}
+                />
+                <Marker
+                  position={pos}
+                  icon={createUserIcon(user.avatar_url, user.display_name, false, isDark)}
+                  eventHandlers={{
+                    click: () => onSelectUser && onSelectUser(user)
+                  }}
+                >
+                  <Popup>
+                    <div className="p-1.5 space-y-2 min-w-[200px] text-black">
+                      <div className="flex items-center gap-2">
+                        {user.avatar_url ? (
+                          <img
+                            src={user.avatar_url}
+                            alt=""
+                            className="w-8 h-8 rounded-full object-cover border border-neutral-300"
+                          />
+                        ) : (
+                          <div className="w-8 h-8 rounded-full bg-neutral-900 text-white flex items-center justify-center font-bold text-xs">
+                            {user.display_name?.slice(0, 2).toUpperCase()}
+                          </div>
+                        )}
+                        <div>
+                          <p className="font-bold text-xs text-neutral-900">{user.display_name}</p>
+                          <p className="text-[10px] text-neutral-500">{user.city || 'Nearby'}</p>
+                        </div>
+                      </div>
+
+                      {user.compatibility && (
+                        <CompatibilityBadge compatibility={user.compatibility} size="sm" />
+                      )}
+
+                      <Link to={`/users/${user.id}`} className="block pt-1">
+                        <Button variant="primary" size="sm" className="w-full text-xs font-bold py-1 h-7">
+                          View Profile
+                        </Button>
+                      </Link>
+                    </div>
+                  </Popup>
+                </Marker>
+              </React.Fragment>
+            );
+          })}
+
+        {/* Activity Markers (when on Activities tab) */}
+        {activeTab === 'activities' &&
+          activities.map((act) => {
+            const lat = Number(act.approx_latitude);
+            const lon = Number(act.approx_longitude);
+            if (!lat || !lon || isNaN(lat) || isNaN(lon)) return null;
+            const pos: [number, number] = [lat, lon];
+
+            return (
               <Marker
+                key={act.id}
                 position={pos}
-                icon={createUserIcon(user.avatar_url, user.display_name, false, isDark)}
+                icon={createActivityIcon(act.category, isDark)}
                 eventHandlers={{
-                  click: () => onSelectUser && onSelectUser(user)
+                  click: () => onSelectActivity && onSelectActivity(act)
                 }}
               >
                 <Popup>
-                  <div className="p-1.5 space-y-2 min-w-[190px]">
-                    <div className="flex items-center gap-2">
-                      <div className="w-8 h-8 rounded-full bg-neutral-200 text-neutral-900 dark:bg-[#1A1A1A] dark:text-white border border-neutral-300 dark:border-[#292929] flex items-center justify-center font-bold text-xs">
-                        {user.display_name?.slice(0, 2).toUpperCase()}
-                      </div>
-                      <div>
-                        <p className="font-bold text-neutral-900 dark:text-white text-xs">{user.display_name}</p>
-                        <p className="text-[10px] text-neutral-500 dark:text-[#8A8A8A]">{user.city || 'Nearby'}</p>
-                      </div>
+                  <div className="p-1.5 space-y-2 min-w-[200px] text-black">
+                    <div>
+                      <span className="inline-block px-2 py-0.5 rounded text-[10px] font-bold bg-[#FFAA2B] text-black mb-1">
+                        {act.category}
+                      </span>
+                      <p className="font-bold text-xs text-neutral-900">{act.title}</p>
+                      <p className="text-[10px] text-neutral-500 mt-0.5">
+                        📅 {act.event_date} {act.event_time ? `• ${act.event_time}` : ''}
+                      </p>
                     </div>
-                    {user.compatibility && (
-                      <CompatibilityBadge compatibility={user.compatibility} size="sm" />
-                    )}
-                    <Link to={`/users/${user.id}`} className="block pt-1">
-                      <Button variant="primary" size="sm" className="w-full text-xs font-bold">
-                        View Profile
+
+                    <p className="text-[11px] text-neutral-600 line-clamp-2">
+                      {act.description}
+                    </p>
+
+                    <Link to={`/activities/${act.id}`} className="block pt-1">
+                      <Button variant="primary" size="sm" className="w-full text-xs font-bold py-1 h-7">
+                        Join Session
                       </Button>
                     </Link>
                   </div>
                 </Popup>
               </Marker>
-            </React.Fragment>
-          );
-        })}
+            );
+          })}
       </MapContainer>
     </div>
   );

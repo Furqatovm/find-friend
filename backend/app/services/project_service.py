@@ -4,8 +4,13 @@ from ..models.notification_and_safety import Notification
 
 class ProjectService:
     @staticmethod
-    def get_all(category=None, stage=None, search=None, current_user_id=None):
-        query = Project.query
+    def get_all(category=None, stage=None, search=None, current_user_id=None, limit=30):
+        from sqlalchemy.orm import joinedload, selectinload
+        query = Project.query.options(
+            joinedload(Project.creator).joinedload(User.profile),
+            selectinload(Project.members).joinedload(ProjectMember.user).joinedload(User.profile),
+            selectinload(Project.groups)
+        )
         if category and category.lower() != 'all':
             query = query.filter(Project.category.ilike(f"%{category}%"))
         if stage and stage.lower() != 'all':
@@ -18,12 +23,17 @@ class ProjectService:
                 (Project.required_skills.ilike(f"%{search}%"))
             )
         
-        projects = query.order_by(Project.created_at.desc()).all()
+        projects = query.order_by(Project.created_at.desc()).limit(limit).all()
         return [p.to_dict(current_user_id) for p in projects]
 
     @staticmethod
     def get_by_id(project_id: str, current_user_id: str = None):
-        project = Project.query.get(project_id)
+        from sqlalchemy.orm import joinedload, selectinload
+        project = Project.query.options(
+            joinedload(Project.creator).joinedload(User.profile),
+            selectinload(Project.members).joinedload(ProjectMember.user).joinedload(User.profile),
+            selectinload(Project.groups)
+        ).filter(Project.id == project_id).first()
         return project.to_dict(current_user_id) if project else None
 
     @staticmethod

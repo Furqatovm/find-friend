@@ -24,6 +24,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useLocation } from '@/context/LocationContext';
 import { useNotification } from '@/context/NotificationContext';
 import { getInitials } from '@/lib/utils';
+import { uploadFile } from '@/api';
 
 interface EditProfileModalProps {
   isOpen: boolean;
@@ -124,10 +125,11 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
     }
   }, [user, isOpen]);
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
+    // Show immediate local preview
     const reader = new FileReader();
     reader.onload = () => {
       if (reader.result) {
@@ -135,6 +137,16 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
       }
     };
     reader.readAsDataURL(file);
+
+    // Upload to permanent backend storage
+    try {
+      const permanentUrl = await uploadFile(file);
+      setAvatarUrl(permanentUrl);
+      notify.success('Photo Uploaded', 'Avatar saved to permanent storage.');
+    } catch (err: any) {
+      console.error('Avatar upload failed:', err);
+      notify.error('Upload Failed', err.response?.data?.error || 'Failed to upload photo.');
+    }
   };
 
   const handleDetectGps = () => {

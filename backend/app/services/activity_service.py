@@ -5,8 +5,13 @@ from ..utils.location_utils import fuzz_coordinates
 
 class ActivityService:
     @staticmethod
-    def get_all(category=None, location_type=None, search=None, current_user_id=None):
-        query = Activity.query
+    def get_all(category=None, location_type=None, search=None, current_user_id=None, limit=30):
+        from sqlalchemy.orm import joinedload, selectinload
+        query = Activity.query.options(
+            joinedload(Activity.creator).joinedload(User.profile),
+            selectinload(Activity.participants).joinedload(ActivityParticipant.user).joinedload(User.profile),
+            selectinload(Activity.groups)
+        )
         if category and category.lower() != 'all':
             query = query.filter(Activity.category.ilike(f"%{category}%"))
         if location_type and location_type.lower() != 'all':
@@ -18,12 +23,17 @@ class ActivityService:
                 (Activity.city.ilike(f"%{search}%"))
             )
         
-        activities = query.order_by(Activity.created_at.desc()).all()
+        activities = query.order_by(Activity.created_at.desc()).limit(limit).all()
         return [a.to_dict(current_user_id) for a in activities]
 
     @staticmethod
     def get_by_id(activity_id: str, current_user_id: str = None):
-        act = Activity.query.get(activity_id)
+        from sqlalchemy.orm import joinedload, selectinload
+        act = Activity.query.options(
+            joinedload(Activity.creator).joinedload(User.profile),
+            selectinload(Activity.participants).joinedload(ActivityParticipant.user).joinedload(User.profile),
+            selectinload(Activity.groups)
+        ).filter(Activity.id == activity_id).first()
         return act.to_dict(current_user_id) if act else None
 
     @staticmethod

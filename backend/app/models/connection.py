@@ -8,7 +8,7 @@ class Connection(db.Model):
     requester_id = db.Column(db.String(36), db.ForeignKey('users.id', ondelete='CASCADE'), nullable=False, index=True)
     addressee_id = db.Column(db.String(36), db.ForeignKey('users.id', ondelete='CASCADE'), nullable=False, index=True)
     
-    status = db.Column(db.String(20), default='pending')  # pending, accepted, declined, cancelled
+    status = db.Column(db.String(20), default='pending', index=True)  # pending, accepted, declined, cancelled
     message = db.Column(db.String(255), nullable=True)  # Optional initial note
     
     created_at = db.Column(db.DateTime, default=datetime.utcnow)

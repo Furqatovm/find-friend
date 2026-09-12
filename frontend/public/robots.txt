@@ -1,0 +1,20 @@
+# WithMe robots.txt
+User-agent: *
+Allow: /
+Allow: /discover
+Allow: /activities
+Allow: /projects
+Allow: /groups
+Allow: /login
+Allow: /register
+
+# Disallow private user spaces and API
+Disallow: /api/
+Disallow: /dashboard
+Disallow: /messages/
+Disallow: /notifications
+Disallow: /settings
+Disallow: /admin/
+Disallow: /onboarding
+
+Sitemap: https://find-friend-one.vercel.app/sitemap.xml

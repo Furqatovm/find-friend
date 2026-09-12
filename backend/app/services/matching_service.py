@@ -135,3 +135,5 @@ class MatchingService:
                 'location': int(location_score * 100)
             }
         }
+
+    calculate_compatibility = calculate_match

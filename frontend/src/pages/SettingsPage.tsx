@@ -109,20 +109,21 @@ export const SettingsPage: React.FC = () => {
   };
 
   return (
-    <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-8 text-neutral-900 dark:text-white transition-colors duration-200">
-      <div>
-        <h1 className="text-3xl font-black text-neutral-900 dark:text-white tracking-tight">SETTINGS & PRIVACY</h1>
-        <p className="text-xs text-neutral-500 dark:text-[#8A8A8A] mt-1">
-          Manage your public profile, location discovery permissions, and safety controls.
-        </p>
-      </div>
-
-      {statusMessage && (
-        <div className="p-3.5 bg-neutral-100 dark:bg-[#141414] border border-neutral-200 dark:border-[#242424] rounded-2xl text-xs text-neutral-900 dark:text-white font-bold flex items-center gap-2 animate-in fade-in shadow-xs">
-          <Check className="w-4 h-4 text-amber-500 dark:text-amber-400" />
-          {statusMessage}
+    <div className="min-h-screen bg-[#000]">
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6 text-white">
+        <div>
+          <h1 className="text-2xl font-bold text-white">Settings & Privacy</h1>
+          <p className="text-xs text-[#555] mt-1">
+            Manage your public profile, location discovery permissions, and safety controls.
+          </p>
         </div>
-      )}
+
+        {statusMessage && (
+          <div className="p-3.5 bg-[#141414] border border-[#292929] rounded-[12px] text-xs text-white font-bold flex items-center gap-2 animate-in">
+            <Check className="w-4 h-4 text-[#FFAA2B]" />
+            {statusMessage}
+          </div>
+        )}
 
       {/* Profile Edit Form */}
       <Card>
@@ -271,6 +272,7 @@ export const SettingsPage: React.FC = () => {
         onClose={() => setShowEditTaxonomiesModal(false)}
         onSuccess={refreshUser}
       />
+      </div>
     </div>
   );
 };

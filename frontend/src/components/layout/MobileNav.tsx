@@ -1,39 +1,56 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Compass, MapPin, MessageSquare, Home, User } from 'lucide-react';
+import { Home, Compass, MapPin, MessageSquare, User } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 
-export const MobileNav: React.FC = () => {
+interface MobileNavProps {
+  unreadCount?: number;
+}
+
+export const MobileNav: React.FC<MobileNavProps> = ({ unreadCount = 0 }) => {
   const { user } = useAuth();
   const location = useLocation();
 
   if (!user) return null;
 
   const items = [
-    { label: 'Home', path: '/dashboard', icon: <Home className="w-5 h-5" /> },
-    { label: 'Discover', path: '/discover', icon: <Compass className="w-5 h-5" /> },
-    { label: 'Nearby', path: '/nearby', icon: <MapPin className="w-5 h-5" /> },
-    { label: 'Chat', path: '/messages', icon: <MessageSquare className="w-5 h-5" /> },
-    { label: 'Profile', path: '/profile', icon: <User className="w-5 h-5" /> }
+    { label: 'Home',     path: '/dashboard',  icon: Home },
+    { label: 'Discover', path: '/discover',   icon: Compass },
+    { label: 'Nearby',   path: '/nearby',     icon: MapPin },
+    { label: 'Chat',     path: '/messages',   icon: MessageSquare, badge: unreadCount },
+    { label: 'Profile',  path: '/profile',    icon: User },
   ];
 
   return (
-    <div className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-white/95 dark:bg-[#000000]/95 backdrop-blur-lg border-t border-neutral-200 dark:border-[#242424] px-2 py-2 transition-colors duration-200">
+    <div className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-[#0A0A0A] border-t border-[#1E1E1E] px-2 py-2">
       <div className="flex items-center justify-around">
-        {items.map((item) => {
-          const isActive = location.pathname === item.path;
+        {items.map(({ label, path, icon: Icon, badge }) => {
+          const isActive =
+            path === '/dashboard'
+              ? location.pathname === path
+              : location.pathname.startsWith(path);
+
           return (
             <Link
-              key={item.path}
-              to={item.path}
-              className={`flex flex-col items-center gap-1 px-3 py-1 rounded-xl text-[10px] font-medium transition-colors ${
+              key={path}
+              to={path}
+              className={`relative flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-[8px] transition-all duration-150 min-w-[48px] ${
                 isActive
-                  ? 'text-neutral-900 font-bold dark:text-white'
-                  : 'text-neutral-500 hover:text-neutral-900 dark:text-[#8A8A8A] dark:hover:text-white'
+                  ? 'text-white'
+                  : 'text-[#555] hover:text-[#888]'
               }`}
             >
-              {item.icon}
-              <span>{item.label}</span>
+              <div className="relative">
+                <Icon className={`w-5 h-5 transition-colors ${isActive ? 'text-[#FFAA2B]' : ''}`} />
+                {badge && badge > 0 && (
+                  <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-[#FFAA2B] text-black text-[9px] font-bold flex items-center justify-center">
+                    {badge > 9 ? '9+' : badge}
+                  </span>
+                )}
+              </div>
+              <span className={`text-[10px] font-medium ${isActive ? 'text-white' : ''}`}>
+                {label}
+              </span>
             </Link>
           );
         })}

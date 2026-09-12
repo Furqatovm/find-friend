@@ -21,7 +21,8 @@ import {
   Trash2,
   Layers,
   Calendar,
-  AlertTriangle
+  AlertTriangle,
+  Loader2
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { useNotification } from '@/context/NotificationContext';
@@ -76,6 +77,7 @@ export const TelegramGroupChat: React.FC<TelegramGroupChatProps> = ({ group, onU
   const [showEditGroupModal, setShowEditGroupModal] = useState(false);
   const [showDeleteGroupDialog, setShowDeleteGroupDialog] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
+  const [deletingMsgId, setDeletingMsgId] = useState<string | null>(null);
 
   const handleDeleteGroup = async () => {
     setDeleteLoading(true);
@@ -96,11 +98,13 @@ export const TelegramGroupChat: React.FC<TelegramGroupChatProps> = ({ group, onU
   const chatContainerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // Poll for live messages every 3 seconds
+  // Poll for live messages every 4 seconds silently
   useEffect(() => {
-    const fetchLatest = async () => {
+    const fetchLatest = async (silent = false) => {
       try {
-        const res = await api.get(`/groups/${group.id}`);
+        const res = await api.get(`/groups/${group.id}`, {
+          headers: silent ? { 'X-Silent': 'true' } : {}
+        });
         setMessages(res.data.messages || []);
         setPinnedMessage(res.data.pinned_message || null);
       } catch (err) {
@@ -108,8 +112,8 @@ export const TelegramGroupChat: React.FC<TelegramGroupChatProps> = ({ group, onU
       }
     };
 
-    fetchLatest();
-    const interval = setInterval(fetchLatest, 3000);
+    fetchLatest(false);
+    const interval = setInterval(() => fetchLatest(true), 4000);
     return () => clearInterval(interval);
   }, [group.id]);
 
@@ -237,6 +241,7 @@ export const TelegramGroupChat: React.FC<TelegramGroupChatProps> = ({ group, onU
   };
 
   const handleDeleteMessage = async (messageId: string) => {
+    setDeletingMsgId(messageId);
     try {
       await api.delete(`/groups/${group.id}/messages/${messageId}`);
       setMessages((prev) => prev.filter((m) => m.id !== messageId));
@@ -247,6 +252,8 @@ export const TelegramGroupChat: React.FC<TelegramGroupChatProps> = ({ group, onU
       if (onUpdateGroup) onUpdateGroup();
     } catch (err: any) {
       notify.error(err.response?.data?.error || 'Failed to delete message');
+    } finally {
+      setDeletingMsgId(null);
     }
   };
 
@@ -407,6 +414,8 @@ export const TelegramGroupChat: React.FC<TelegramGroupChatProps> = ({ group, onU
             );
           }
 
+          const isDeleting = deletingMsgId === msg.id;
+
           return (
             <div
               key={msg.id}
@@ -437,6 +446,8 @@ export const TelegramGroupChat: React.FC<TelegramGroupChatProps> = ({ group, onU
                 {/* Bubble */}
                 <div
                   className={`relative px-3.5 py-2.5 rounded-2xl text-xs sm:text-sm leading-relaxed transition-all shadow-xs ${
+                    isDeleting ? 'opacity-40 scale-[0.98] pointer-events-none' : ''
+                  } ${
                     isMe
                       ? 'bg-neutral-900 text-white rounded-br-xs dark:bg-[#1F1F1F] dark:text-white border border-neutral-900 dark:border-[#2E2E2E]'
                       : 'bg-white text-neutral-900 rounded-bl-xs dark:bg-[#141414] dark:text-white border border-neutral-200 dark:border-[#242424]'
@@ -613,14 +624,26 @@ export const TelegramGroupChat: React.FC<TelegramGroupChatProps> = ({ group, onU
                   {isMe && (
                     <button
                       type="button"
+                      disabled={isDeleting}
                       onClick={() => handleDeleteMessage(msg.id)}
-                      className="p-1 text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 rounded hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors"
-                      title="Delete your message"
+                      className="p-1 text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 rounded hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors disabled:opacity-50"
+                      title={isDeleting ? "O'chirilmoqda..." : "Delete your message"}
                     >
-                      <Trash2 className="w-3.5 h-3.5" />
+                      {isDeleting ? (
+                        <Loader2 className="w-3.5 h-3.5 animate-spin text-red-500" />
+                      ) : (
+                        <Trash2 className="w-3.5 h-3.5" />
+                      )}
                     </button>
                   )}
                 </div>
+
+                {isDeleting && (
+                  <span className="text-red-500 dark:text-red-400 text-[10px] font-medium inline-flex items-center gap-1 animate-pulse mt-0.5 self-end">
+                    <Loader2 className="w-2.5 h-2.5 animate-spin" />
+                    O'chirilmoqda...
+                  </span>
+                )}
               </div>
             </div>
           );
@@ -696,8 +719,13 @@ export const TelegramGroupChat: React.FC<TelegramGroupChatProps> = ({ group, onU
             type="submit"
             disabled={sending || !inputText.trim()}
             className="p-2.5 rounded-2xl bg-neutral-900 hover:bg-neutral-800 dark:bg-white dark:hover:bg-neutral-200 text-white dark:text-black font-bold disabled:opacity-30 disabled:cursor-not-allowed transition-all cursor-pointer shadow-xs"
+            title={sending ? "Jo'natilmoqda..." : "Yuborish"}
           >
-            <Send className="w-4 h-4" />
+            {sending ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <Send className="w-4 h-4" />
+            )}
           </button>
         </form>
       </div>

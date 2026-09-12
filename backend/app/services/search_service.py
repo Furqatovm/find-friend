@@ -1,6 +1,6 @@
 from ..models.user import User
 from ..models.profile import Profile
-from ..models.activity import Activity
+from ..models.activity import Activity, ActivityParticipant
 from ..models.project import Project
 from ..models.group import Group
 from ..models.taxonomy import Interest, Skill, Goal
@@ -21,8 +21,16 @@ class SearchService:
 
         like_term = f"%{q}%"
 
+        from sqlalchemy.orm import joinedload, selectinload
+
         # 1. Search Users
-        user_query = User.query.join(Profile, isouter=True).filter(
+        user_query = User.query.join(Profile, isouter=True).options(
+            joinedload(User.profile),
+            joinedload(User.location_pref),
+            selectinload(User.interests),
+            selectinload(User.skills),
+            selectinload(User.goals)
+        ).filter(
             (User.username.ilike(like_term)) |
             (Profile.display_name.ilike(like_term)) |
             (Profile.headline.ilike(like_term)) |
@@ -37,12 +45,18 @@ class SearchService:
         for u in found_users:
             u_dict = u.to_dict()
             if current_user:
-                comp = MatchingService.calculate_compatibility(current_user, u)
-                u_dict['compatibility'] = comp
+                try:
+                    comp = MatchingService.calculate_match(current_user, u)
+                    u_dict['compatibility'] = comp
+                except Exception:
+                    u_dict['compatibility'] = None
             users_result.append(u_dict)
 
         # 2. Search Activities
-        found_activities = Activity.query.filter(
+        found_activities = Activity.query.options(
+            joinedload(Activity.creator).joinedload(User.profile),
+            selectinload(Activity.participants).joinedload(ActivityParticipant.user).joinedload(User.profile)
+        ).filter(
             (Activity.title.ilike(like_term)) |
             (Activity.description.ilike(like_term)) |
             (Activity.category.ilike(like_term)) |
@@ -51,7 +65,10 @@ class SearchService:
         activities_result = [a.to_dict(current_user.id if current_user else None) for a in found_activities]
 
         # 3. Search Projects
-        found_projects = Project.query.filter(
+        found_projects = Project.query.options(
+            joinedload(Project.creator).joinedload(User.profile),
+            selectinload(Project.members)
+        ).filter(
             (Project.title.ilike(like_term)) |
             (Project.description.ilike(like_term)) |
             (Project.category.ilike(like_term)) |
@@ -60,12 +77,15 @@ class SearchService:
         projects_result = [p.to_dict(current_user.id if current_user else None) for p in found_projects]
 
         # 4. Search Groups
-        found_groups = Group.query.filter(
+        found_groups = Group.query.options(
+            joinedload(Group.creator).joinedload(User.profile),
+            selectinload(Group.members)
+        ).filter(
             (Group.name.ilike(like_term)) |
             (Group.description.ilike(like_term)) |
             (Group.category.ilike(like_term))
         ).limit(limit).all()
-        groups_result = [g.to_dict(current_user.id if current_user else None) for g in found_groups]
+        groups_result = [g.to_dict(current_user.id if current_user else None, include_messages=False) for g in found_groups]
 
         # 5. Matching Interests & Skills tags
         found_interests = Interest.query.filter(Interest.name.ilike(like_term)).limit(4).all()

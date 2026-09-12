@@ -11,9 +11,10 @@ import { TopLineLoader } from '@/components/common/TopLineLoader';
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      staleTime: 1000 * 60 * 3, // 3 minutes - Instant loads without re-fetching
-      gcTime: 1000 * 60 * 15,    // 15 minutes in-memory caching
+      staleTime: 1000 * 60 * 5,  // 5 minutes - Instant loads without re-fetching from backend
+      gcTime: 1000 * 60 * 30,    // 30 minutes in-memory caching
       refetchOnWindowFocus: false,
+      refetchOnReconnect: true,
       retry: 1
     }
   }

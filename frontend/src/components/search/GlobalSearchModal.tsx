@@ -62,26 +62,35 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({ isOpen, on
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isOpen, onClose]);
 
-  // Debounced Search Query
+  // Debounced Search Query with AbortController
   useEffect(() => {
     if (!query.trim()) {
       setResults({ users: [], activities: [], projects: [], groups: [], tags: [] });
       return;
     }
 
+    const controller = new AbortController();
     const timer = setTimeout(async () => {
       setLoading(true);
       try {
-        const res = await api.get('/search', { params: { q: query.trim(), limit: 6 } });
+        const res = await api.get('/search', {
+          params: { q: query.trim(), limit: 6 },
+          signal: controller.signal
+        });
         setResults(res.data);
-      } catch (err) {
-        console.error('Search error', err);
+      } catch (err: any) {
+        if (err.name !== 'CanceledError' && err.name !== 'AbortError') {
+          console.error('Search error', err);
+        }
       } finally {
         setLoading(false);
       }
     }, 200);
 
-    return () => clearTimeout(timer);
+    return () => {
+      clearTimeout(timer);
+      controller.abort();
+    };
   }, [query]);
 
   const handleSelect = (url: string) => {

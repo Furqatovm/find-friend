@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { ArrowLeft, Users } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { useAuth } from '@/context/AuthContext';
 import { useNotification } from '@/context/NotificationContext';
@@ -8,6 +9,7 @@ import { TelegramGroupChat } from '@/components/groups/TelegramGroupChat';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { getCategoryBadgeColor, getInitials } from '@/lib/utils';
+import { PageSpinner } from '@/components/ui/Spinner';
 import type { Group } from '@/types';
 
 export const GroupDetailPage: React.FC = () => {
@@ -15,26 +17,17 @@ export const GroupDetailPage: React.FC = () => {
   const { user } = useAuth();
   const { notify } = useNotification();
 
-  const [group, setGroup] = useState<Group | null>(null);
-  const [loading, setLoading] = useState(true);
   const [joinLoading, setJoinLoading] = useState(false);
 
-  const fetchGroup = async () => {
-    if (!id) return;
-    setLoading(true);
-    try {
+  const { data: group, isLoading: loading, refetch: fetchGroup } = useQuery<Group | null>({
+    queryKey: ['group', id],
+    queryFn: async () => {
       const res = await api.get(`/groups/${id}`);
-      setGroup(res.data);
-    } catch (err) {
-      console.error('Failed to load group detail', err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchGroup();
-  }, [id]);
+      return res.data;
+    },
+    enabled: !!id,
+    staleTime: 1000 * 60 * 5
+  });
 
   const handleJoinGroup = async () => {
     if (!group) return;
@@ -52,11 +45,7 @@ export const GroupDetailPage: React.FC = () => {
   };
 
   if (loading) {
-    return (
-      <div className="max-w-5xl mx-auto px-4 py-20 text-center text-neutral-500 dark:text-[#8A8A8A]">
-        <p className="text-xs">Opening group chat...</p>
-      </div>
-    );
+    return <PageSpinner text="Opening group chat..." />;
   }
 
   if (!group) {

@@ -9,20 +9,20 @@ class Activity(db.Model):
     
     title = db.Column(db.String(150), nullable=False)
     description = db.Column(db.Text, nullable=False)
-    category = db.Column(db.String(50), nullable=False)  # Study, Coding, Gaming, Languages, Sports, etc.
+    category = db.Column(db.String(50), nullable=False, index=True)  # Study, Coding, Gaming, Languages, Sports, etc.
     
-    location_type = db.Column(db.String(20), default='online')  # online, in_person, hybrid
+    location_type = db.Column(db.String(20), default='online', index=True)  # online, in_person, hybrid
     city = db.Column(db.String(100), nullable=True)
     general_location = db.Column(db.String(200), nullable=True)  # e.g., "Central Library 3rd Floor" or "Discord Server"
-    approx_latitude = db.Column(db.Float, nullable=True)
-    approx_longitude = db.Column(db.Float, nullable=True)
+    approx_latitude = db.Column(db.Float, nullable=True, index=True)
+    approx_longitude = db.Column(db.Float, nullable=True, index=True)
     
-    event_date = db.Column(db.String(50), nullable=False)  # e.g., "2026-09-10"
+    event_date = db.Column(db.String(50), nullable=False, index=True)  # e.g., "2026-09-10"
     event_time = db.Column(db.String(50), nullable=False)  # e.g., "16:00"
     
     max_participants = db.Column(db.Integer, default=6)
     required_skills = db.Column(db.String(255), nullable=True)  # comma-separated
-    status = db.Column(db.String(20), default='upcoming')  # upcoming, active, completed, cancelled
+    status = db.Column(db.String(20), default='upcoming', index=True)  # upcoming, active, completed, cancelled
     
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
@@ -61,7 +61,7 @@ class Activity(db.Model):
             'status': self.status,
             'is_joined': is_joined,
             'is_creator': is_creator,
-            'groups': [g.to_dict(current_user_id) for g in self.groups] if self.groups else [],
+            'groups': [g.to_dict(current_user_id, include_messages=False) for g in self.groups] if self.groups else [],
             'created_at': self.created_at.isoformat() if self.created_at else None
         }
 
@@ -69,8 +69,8 @@ class ActivityParticipant(db.Model):
     __tablename__ = 'activity_participants'
 
     id = db.Column(db.String(36), primary_key=True, default=generate_uuid)
-    activity_id = db.Column(db.String(36), db.ForeignKey('activities.id', ondelete='CASCADE'), nullable=False)
-    user_id = db.Column(db.String(36), db.ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
+    activity_id = db.Column(db.String(36), db.ForeignKey('activities.id', ondelete='CASCADE'), nullable=False, index=True)
+    user_id = db.Column(db.String(36), db.ForeignKey('users.id', ondelete='CASCADE'), nullable=False, index=True)
     role = db.Column(db.String(20), default='member')  # host, member
     joined_at = db.Column(db.DateTime, default=datetime.utcnow)
 

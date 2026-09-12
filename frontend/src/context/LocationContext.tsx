@@ -104,8 +104,17 @@ export const LocationProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   );
 };
 
+const defaultLocationContext: LocationContextType = {
+  hasLocationPermission: false,
+  latitude: null,
+  longitude: null,
+  city: null,
+  isLocating: false,
+  requestLocationPermission: async () => false,
+  setLocationManually: async () => {}
+};
+
 export const useLocation = () => {
   const context = useContext(LocationContext);
-  if (!context) throw new Error('useLocation must be used within a LocationProvider');
-  return context;
+  return context || defaultLocationContext;
 };

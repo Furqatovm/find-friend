@@ -23,31 +23,48 @@ const notifyListeners = () => {
   listeners.forEach((fn) => fn(activeRequests));
 };
 
+const isSilentRequest = (config?: any) => {
+  if (!config) return false;
+  return (
+    config.silent === true ||
+    config.headers?.['X-Silent'] === 'true' ||
+    config.headers?.['x-silent'] === 'true'
+  );
+};
+
 // Request interceptor to attach JWT
 api.interceptors.request.use((config) => {
-  activeRequests++;
-  notifyListeners();
+  if (!isSilentRequest(config)) {
+    activeRequests++;
+    notifyListeners();
+  }
   const token = localStorage.getItem('withme_access_token');
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
   return config;
 }, (error) => {
-  activeRequests = Math.max(0, activeRequests - 1);
-  notifyListeners();
+  if (!isSilentRequest(error.config)) {
+    activeRequests = Math.max(0, activeRequests - 1);
+    notifyListeners();
+  }
   return Promise.reject(error);
 });
 
 // Response interceptor to handle token refresh
 api.interceptors.response.use(
   (response) => {
-    activeRequests = Math.max(0, activeRequests - 1);
-    notifyListeners();
+    if (!isSilentRequest(response.config)) {
+      activeRequests = Math.max(0, activeRequests - 1);
+      notifyListeners();
+    }
     return response;
   },
   async (error) => {
-    activeRequests = Math.max(0, activeRequests - 1);
-    notifyListeners();
+    if (!isSilentRequest(error.config)) {
+      activeRequests = Math.max(0, activeRequests - 1);
+      notifyListeners();
+    }
     const originalRequest = error.config;
     if (error.response?.status === 401 && !originalRequest._retry) {
       originalRequest._retry = true;

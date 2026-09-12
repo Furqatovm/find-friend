@@ -64,44 +64,64 @@ def update_current_user():
     if 'interests' in data or 'interest_ids' in data:
         interest_items = data.get('interests') or data.get('interest_ids') or []
         UserInterest.query.filter_by(user_id=user.id).delete()
+        seen_interest_ids = set()
         for i_item in interest_items:
-            i_name = i_item if isinstance(i_item, str) else i_item.get('name')
-            interest = Interest.query.filter(Interest.name.ilike(f"%{i_name}%")).first() or Interest.query.get(i_name)
-            if not interest and isinstance(i_name, str) and len(i_name.strip()) > 1:
-                interest = Interest(name=i_name.strip(), category='General')
+            if not i_item:
+                continue
+            i_name = i_item.get('name') if isinstance(i_item, dict) else str(i_item).strip()
+            if not i_name:
+                continue
+            interest = Interest.query.filter(Interest.name.ilike(i_name)).first()
+            if not interest and len(i_name) == 36:
+                interest = Interest.query.get(i_name)
+            if not interest and len(i_name) > 1:
+                interest = Interest(name=i_name, category='General')
                 db.session.add(interest)
                 db.session.flush()
-            if interest:
+            if interest and interest.id not in seen_interest_ids:
+                seen_interest_ids.add(interest.id)
                 db.session.add(UserInterest(user_id=user.id, interest_id=interest.id))
 
     # Update Goals if provided
     if 'goals' in data or 'goal_ids' in data:
         goal_items = data.get('goals') or data.get('goal_ids') or []
         UserGoal.query.filter_by(user_id=user.id).delete()
+        seen_goal_ids = set()
         for g_item in goal_items:
-            g_title = g_item if isinstance(g_item, str) else g_item.get('title')
-            goal = Goal.query.filter(Goal.title.ilike(f"%{g_title}%")).first() or Goal.query.get(g_title)
-            if not goal and isinstance(g_title, str) and len(g_title.strip()) > 1:
-                goal = Goal(title=g_title.strip(), category='General')
+            if not g_item:
+                continue
+            g_title = g_item.get('title') if isinstance(g_item, dict) else str(g_item).strip()
+            if not g_title:
+                continue
+            goal = Goal.query.filter(Goal.title.ilike(g_title)).first()
+            if not goal and len(g_title) == 36:
+                goal = Goal.query.get(g_title)
+            if not goal and len(g_title) > 1:
+                goal = Goal(title=g_title, category='General')
                 db.session.add(goal)
                 db.session.flush()
-            if goal:
+            if goal and goal.id not in seen_goal_ids:
+                seen_goal_ids.add(goal.id)
                 db.session.add(UserGoal(user_id=user.id, goal_id=goal.id))
 
     # Update Skills if provided
     if 'skills' in data:
         skills_data = data.get('skills') or []
         UserSkill.query.filter_by(user_id=user.id).delete()
+        seen_skill_ids = set()
         for s_item in skills_data:
-            s_name = s_item.get('name') if isinstance(s_item, dict) else s_item
+            if not s_item:
+                continue
+            s_name = s_item.get('name') if isinstance(s_item, dict) else str(s_item).strip()
             s_id = s_item.get('skill_id') if isinstance(s_item, dict) else None
             level = s_item.get('level', 'Intermediate') if isinstance(s_item, dict) else 'Intermediate'
-            skill = (Skill.query.get(s_id) if s_id else None) or (Skill.query.filter(Skill.name.ilike(f"%{s_name}%")).first() if s_name else None)
+            skill = (Skill.query.get(s_id) if s_id and len(str(s_id)) == 36 else None) or (Skill.query.filter(Skill.name.ilike(s_name)).first() if s_name else None)
             if not skill and isinstance(s_name, str) and len(s_name.strip()) > 1:
                 skill = Skill(name=s_name.strip(), category='General')
                 db.session.add(skill)
                 db.session.flush()
-            if skill:
+            if skill and skill.id not in seen_skill_ids:
+                seen_skill_ids.add(skill.id)
                 db.session.add(UserSkill(user_id=user.id, skill_id=skill.id, level=level))
 
     # Update Availability if provided
@@ -115,20 +135,32 @@ def update_current_user():
                 db.session.add(Availability(user_id=user.id, day_of_week=day, time_slot=slot))
 
     # Update Coordinates if provided
-    if data.get('latitude') is not None and data.get('longitude') is not None:
-        loc_pref = user.location_pref
-        if not loc_pref:
-            loc_pref = LocationPreference(user_id=user.id)
-            db.session.add(loc_pref)
-        raw_lat = float(data.get('latitude'))
-        raw_lon = float(data.get('longitude'))
-        f_lat, f_lon = fuzz_coordinates(raw_lat, raw_lon, user.id)
-        loc_pref.latitude = raw_lat
-        loc_pref.longitude = raw_lon
-        loc_pref.approx_latitude = f_lat
-        loc_pref.approx_longitude = f_lon
-            
-    db.session.commit()
+    lat_val = data.get('latitude')
+    lon_val = data.get('longitude')
+    if lat_val not in (None, '') and lon_val not in (None, ''):
+        try:
+            raw_lat = float(lat_val)
+            raw_lon = float(lon_val)
+            loc_pref = user.location_pref
+            if not loc_pref:
+                loc_pref = LocationPreference(user_id=user.id)
+                db.session.add(loc_pref)
+            f_lat, f_lon = fuzz_coordinates(raw_lat, raw_lon, user.id)
+            loc_pref.location_enabled = True
+            loc_pref.approx_latitude = raw_lat
+            loc_pref.approx_longitude = raw_lon
+            loc_pref.fuzzed_latitude = f_lat
+            loc_pref.fuzzed_longitude = f_lon
+        except (ValueError, TypeError):
+            pass
+
+    try:
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        import logging
+        logging.getLogger(__name__).error(f"Error updating user profile: {e}", exc_info=True)
+        return jsonify({'error': f'Failed to update profile: {str(e)}'}), 500
     
     # Return fresh user dict with nested relationships
     user_data = user.to_dict(include_private=True)
@@ -282,7 +314,15 @@ def complete_onboarding():
 @user_bp.route('/<user_id>', methods=['GET'])
 @jwt_required(optional=True)
 def get_user_profile(user_id):
-    target_user = User.query.get(user_id)
+    from sqlalchemy.orm import joinedload, selectinload
+    target_user = User.query.options(
+        joinedload(User.profile),
+        joinedload(User.location_pref),
+        selectinload(User.interests).joinedload(UserInterest.interest),
+        selectinload(User.skills).joinedload(UserSkill.skill),
+        selectinload(User.goals).joinedload(UserGoal.goal),
+        selectinload(User.availabilities)
+    ).filter(User.id == user_id).first()
     if not target_user or not target_user.is_active:
         return jsonify({'error': 'User not found'}), 404
 

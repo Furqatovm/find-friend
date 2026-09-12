@@ -1,338 +1,314 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import {
-  MapPin,
-  Sparkles,
-  Rocket,
-  Shield,
-  ArrowRight,
-  CheckCircle2,
-  ChevronDown,
-  MessageSquare,
-  Zap
-} from 'lucide-react';
+import { ArrowRight, MapPin, Users, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
-import { Badge } from '@/components/ui/Badge';
+
+// Animated connection node component
+const ConnectionNode: React.FC<{
+  x: number; y: number; label: string; size?: 'sm' | 'md';
+  delay?: number; color?: string;
+}> = ({ x, y, label, size = 'sm', delay = 0, color = '#FFAA2B' }) => (
+  <motion.div
+    initial={{ opacity: 0, scale: 0.5 }}
+    animate={{ opacity: 1, scale: 1 }}
+    transition={{ duration: 0.5, delay }}
+    className="absolute flex flex-col items-center gap-1.5"
+    style={{ left: `${x}%`, top: `${y}%`, transform: 'translate(-50%, -50%)' }}
+  >
+    <div
+      className={`rounded-full border-2 flex items-center justify-center font-bold text-black text-xs shadow-lg ${
+        size === 'md' ? 'w-14 h-14' : 'w-10 h-10'
+      }`}
+      style={{ backgroundColor: color, borderColor: color }}
+    >
+      {label.slice(0, 2).toUpperCase()}
+    </div>
+    <span className="text-[10px] text-[#8A8A8A] font-medium whitespace-nowrap">{label}</span>
+  </motion.div>
+);
+
+// SVG connection line — plain SVG with CSS fade-in (no pathLength to avoid AnimatePresence conflicts)
+const ConnectionLine: React.FC<{
+  x1: number; y1: number; x2: number; y2: number; delay?: number;
+}> = ({ x1, y1, x2, y2, delay = 0 }) => (
+  <line
+    x1={`${x1}%`} y1={`${y1}%`}
+    x2={`${x2}%`} y2={`${y2}%`}
+    stroke="#FFAA2B"
+    strokeWidth="1"
+    strokeOpacity="0.25"
+    strokeDasharray="4 4"
+    style={{
+      opacity: 0,
+      animation: `fadeIn 0.6s ease forwards`,
+      animationDelay: `${delay}s`,
+    }}
+  />
+);
+
+const faqs = [
+  {
+    q: 'Is WithMe a dating app?',
+    a: 'No. WithMe is strictly a friendship, study-partner, and project collaboration platform. Profiles focus on goals, skills, and activities.'
+  },
+  {
+    q: 'How does the compatibility score work?',
+    a: 'Our algorithm factors shared interests, goals, skill levels, schedule overlap, and approximate location to compute a 0–100% compatibility score.'
+  },
+  {
+    q: 'Is my exact location visible to others?',
+    a: 'Never. We use privacy-preserving coordinate fuzzing — only approximate distance (e.g. "Within 3 km") is shown.'
+  },
+  {
+    q: 'Is WithMe free?',
+    a: 'Yes. Finding partners, joining groups, creating sessions, and all core features are 100% free.'
+  }
+];
+
+const features = [
+  {
+    icon: <Sparkles className="w-5 h-5 text-[#FFAA2B]" />,
+    title: 'AI Matchmaker',
+    desc: 'Precise multi-dimensional compatibility scores based on your goals, skills, and schedule.'
+  },
+  {
+    icon: <MapPin className="w-5 h-5 text-[#FFAA2B]" />,
+    title: 'Privacy-First GPS',
+    desc: 'Discover people nearby without ever sharing your exact address.'
+  },
+  {
+    icon: <Users className="w-5 h-5 text-[#FFAA2B]" />,
+    title: 'Live Study Groups',
+    desc: 'Create or join scheduled sessions, projects, and accountability circles.'
+  }
+];
 
 export const LandingPage: React.FC = () => {
-  const [openFaq, setOpenFaq] = useState<number | null>(null);
-
-  const categories = [
-    { title: 'Study & SAT/IELTS', icon: '📚', count: '450+ peers', desc: 'SAT Math 800, IELTS 8.5, university exams, calculus, and study accountability partner matching.' },
-    { title: 'Coding & Tech', icon: '💻', count: '620+ devs', desc: 'React, Python AI, LeetCode sprints, hackathon teams & open-source collaboration.' },
-    { title: 'Startups & MVPs', icon: '🚀', count: '280+ builders', desc: 'Find co-founders, UI designers, fullstack engineers, and build real startup MVPs.' },
-    { title: 'Gaming & Co-op', icon: '🎮', count: '510+ gamers', desc: 'Minecraft, Valorant, CS2, indie games, and game dev collaboration in Unity & Godot.' },
-    { title: 'Language Exchange', icon: '🌎', count: '390+ speakers', desc: 'Practice English speaking circles, French, German, or Uzbek conversation circles.' },
-    { title: 'Design & Creative', icon: '🎨', count: '210+ designers', desc: 'UI/UX design critique, 3D Blender modeling, digital illustrations & video production.' }
-  ];
-
-  const features = [
-    {
-      icon: <Sparkles className="w-5 h-5 text-amber-500 dark:text-amber-400" />,
-      title: 'AI Conversational Matchmaker',
-      desc: 'Our interactive AI assistant analyzes your exact learning goals, skill level, and schedule to calculate precise multi-dimensional compatibility scores.'
-    },
-    {
-      icon: <MapPin className="w-5 h-5 text-neutral-900 dark:text-white" />,
-      title: 'Privacy-Preserving GPS Discovery',
-      desc: 'Discover peers in your city or university campus within 5-25 km without ever sharing your exact street address (using secure coordinate fuzzing).'
-    },
-    {
-      icon: <MessageSquare className="w-5 h-5 text-neutral-900 dark:text-white" />,
-      title: 'Community Guilds & Group Chats',
-      desc: 'Connect in real-time community guilds with interactive polls, instant replies, hover reactions, and pinned announcements.'
-    },
-    {
-      icon: <Rocket className="w-5 h-5 text-neutral-900 dark:text-white" />,
-      title: 'Live Study Sessions & Projects',
-      desc: 'Create or join scheduled meetups, project roadmaps, and 1-on-1 accountability sessions with one click.'
-    },
-    {
-      icon: <Shield className="w-5 h-5 text-amber-500 dark:text-amber-400" />,
-      title: '100% Non-Dating Safety Focus',
-      desc: 'Dedicated purely to friendship, study accountability, and co-building. Built-in moderation, user reporting, and voluntary contact sharing.'
-    },
-    {
-      icon: <Zap className="w-5 h-5 text-neutral-900 dark:text-white" />,
-      title: 'Progress Tracking & Streaks',
-      desc: 'Track your weekly study hours, completed sessions, skill growth, and collaboration milestones directly on your live profile dashboard.'
-    }
-  ];
-
-  const faqs = [
-    {
-      category: 'Platform Purpose',
-      q: "Is WithMe a dating app?",
-      a: "No, absolutely not. WithMe is strictly a friendship, study-partner, project collaboration, and shared-hobby discovery platform. Profiles emphasize goals, skills, and activities."
-    },
-    {
-      category: 'Matching Algorithm',
-      q: "How does the compatibility algorithm work?",
-      a: "Our algorithm calculates a multi-dimensional score (0-100%) factoring in shared interests, target goals (e.g. SAT Math, IELTS 8.0), skill levels, schedule overlap, and approximate location."
-    },
-    {
-      category: 'Safety & Privacy',
-      q: "Is my exact address or location visible to others?",
-      a: "Never. WithMe uses privacy-first coordinate fuzzing (~1-2 km random offset) and only displays approximate distance buckets (e.g. 'Within 3 km' or 'Tashkent, Uzbekistan')."
-    },
-    {
-      category: 'Cost & Access',
-      q: "Is WithMe completely free to use?",
-      a: "Yes. Creating an account, chatting with AI, finding partners, joining community guilds, and creating study sessions is 100% free."
-    }
-  ];
+  const [openFaq, setOpenFaq] = React.useState<number | null>(null);
 
   return (
-    <div className="space-y-32 bg-[#F8F9FA] dark:bg-[#080808] text-neutral-900 dark:text-white transition-colors duration-200">
-      {/* 1. Hero Section */}
-      <section className="relative pt-20 pb-20 md:pt-32 md:pb-32 overflow-hidden border-b border-neutral-200 dark:border-[#1F1F1F]">
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 text-center space-y-8">
-          
-          <motion.div
-            initial={{ opacity: 0, y: 15 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.4 }}
-            className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-neutral-100 dark:bg-[#141414] border border-neutral-200 dark:border-[#292929] text-xs font-semibold text-neutral-800 dark:text-[#D4D4D4] shadow-xs"
-          >
-            <span className="w-2 h-2 rounded-full bg-amber-500 dark:bg-amber-400" />
-            <span>Discover Study Partners, Co-Builders & Teammates</span>
-          </motion.div>
-
-          <motion.h1
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.1 }}
-            className="text-5xl sm:text-7xl lg:text-8xl font-black tracking-tight text-neutral-900 dark:text-white max-w-4xl mx-auto leading-[1.05]"
-          >
-            FIND YOUR <br />
-            <span className="text-neutral-900 dark:text-white">PEOPLE.</span>
-          </motion.h1>
-
-          <motion.p
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.2 }}
-            className="text-base sm:text-xl text-neutral-600 dark:text-[#8A8A8A] max-w-2xl mx-auto leading-relaxed"
-          >
-            Not just people nearby. People who want to do the exact same things you do.
-          </motion.p>
-
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.3 }}
-            className="flex flex-col sm:flex-row items-center justify-center gap-3.5 pt-4"
-          >
-            <Link to="/register" className="w-full sm:w-auto">
-              <Button size="lg" className="w-full sm:w-auto font-bold px-8 bg-neutral-900 hover:bg-neutral-800 dark:bg-white dark:hover:bg-neutral-200 text-white dark:text-black shadow-lg">
-                Find My People
-                <ArrowRight className="w-4 h-4 ml-2" />
-              </Button>
-            </Link>
-            <Link to="/discover" className="w-full sm:w-auto">
-              <Button variant="outline" size="lg" className="w-full sm:w-auto px-8 border-neutral-300 dark:border-[#292929] text-neutral-900 dark:text-white hover:bg-neutral-100 dark:hover:bg-[#141414]">
-                Explore Community
-              </Button>
-            </Link>
-          </motion.div>
-
-          {/* Minimal Trust Bar */}
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.5, delay: 0.4 }}
-            className="pt-12 flex flex-wrap items-center justify-center gap-6 text-xs text-neutral-500 dark:text-[#8A8A8A]"
-          >
-            <span className="flex items-center gap-2">
-              <CheckCircle2 className="w-4 h-4 text-neutral-900 dark:text-white" />
-              100% Free Platform
-            </span>
-            <span className="flex items-center gap-2">
-              <Shield className="w-4 h-4 text-neutral-900 dark:text-white" />
-              Privacy-First & Anti-Dating
-            </span>
-            <span className="flex items-center gap-2">
-              <Zap className="w-4 h-4 text-amber-500 dark:text-amber-400" />
-              Instant AI Matchmaking
-            </span>
-          </motion.div>
+    <div className="bg-[#000000] text-white overflow-x-hidden">
+      {/* ── Hero ───────────────────────────────────────── */}
+      <section className="relative min-h-[90vh] flex items-center border-b border-[#1A1A1A] overflow-hidden">
+        {/* Subtle background glow */}
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+          <div className="absolute top-1/4 right-1/4 w-96 h-96 bg-[#FFAA2B]/5 rounded-full blur-3xl" />
+          <div className="absolute bottom-1/4 left-1/4 w-64 h-64 bg-[#FFAA2B]/3 rounded-full blur-3xl" />
         </div>
-      </section>
 
-      {/* 2. Live Interactive Match Showcase */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="bg-white dark:bg-[#0F0F0F] border border-neutral-200 dark:border-[#242424] rounded-3xl p-6 sm:p-12 shadow-xl">
-          <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-10 pb-6 border-b border-neutral-200 dark:border-[#242424]">
-            <div>
-              <p className="text-xs font-bold text-amber-600 dark:text-amber-400 uppercase tracking-wider mb-1">Live Match Engine</p>
-              <h3 className="text-2xl sm:text-3xl font-black text-neutral-900 dark:text-white tracking-tight">How compatibility works in real time</h3>
-            </div>
-            <Link to="/discover" className="text-xs font-bold text-neutral-900 dark:text-white hover:text-neutral-700 dark:hover:text-neutral-300 flex items-center gap-1">
-              Browse all 1,200+ members <ArrowRight className="w-3.5 h-3.5" />
-            </Link>
+        <div className="relative max-w-6xl mx-auto px-4 sm:px-6 py-20 grid lg:grid-cols-2 gap-12 lg:gap-16 items-center">
+          {/* Left — copy */}
+          <div className="space-y-8">
+            {/* Pill badge */}
+            <motion.div
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.4 }}
+              className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#141414] border border-[#292929] text-xs font-semibold text-[#D4D4D4]"
+            >
+              <span className="w-2 h-2 rounded-full bg-[#FFAA2B] animate-pulse" />
+              50,000+ active members
+            </motion.div>
+
+            {/* Heading */}
+            <motion.h1
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.1 }}
+              className="text-5xl sm:text-6xl font-black leading-[1.08] tracking-tight"
+            >
+              Find your people<br />
+              for what you{' '}
+              <span className="text-[#FFAA2B]">love.</span>
+            </motion.h1>
+
+            {/* Sub */}
+            <motion.p
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.4, delay: 0.2 }}
+              className="text-base text-[#8A8A8A] leading-relaxed max-w-md"
+            >
+              Study together. Build projects. Play games. Practice skills.
+              Find people nearby. Connect around shared interests.
+            </motion.p>
+
+            {/* CTA row */}
+            <motion.div
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.4, delay: 0.3 }}
+              className="flex flex-wrap items-center gap-3"
+            >
+              <Link to="/register">
+                <Button variant="primary" size="lg" className="font-bold gap-2">
+                  Find My People
+                  <ArrowRight className="w-4 h-4" />
+                </Button>
+              </Link>
+              <Link to="/discover">
+                <Button variant="outline" size="lg">
+                  Browse People
+                </Button>
+              </Link>
+            </motion.div>
+
+            {/* Social proof avatars */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.5 }}
+              className="flex items-center gap-3"
+            >
+              <div className="flex -space-x-2">
+                {['AJ', 'SK', 'DK', 'EW', 'MK'].map((init, i) => (
+                  <div
+                    key={i}
+                    className="w-8 h-8 rounded-full bg-[#1A1A1A] border-2 border-[#000] flex items-center justify-center text-[10px] font-bold text-white"
+                    style={{ zIndex: 5 - i }}
+                  >
+                    {init}
+                  </div>
+                ))}
+              </div>
+              <span className="text-xs text-[#8A8A8A]">
+                Join <strong className="text-white">50,000+</strong> active members
+              </span>
+            </motion.div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {/* Card 1 */}
-            <div className="bg-neutral-50 dark:bg-[#141414] border border-neutral-200 dark:border-[#242424] rounded-2xl p-5 space-y-4 hover:border-neutral-300 dark:hover:border-[#383838] transition-all shadow-xs">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-neutral-200 text-neutral-900 dark:bg-[#1F1F1F] border border-neutral-300 dark:border-[#2E2E2E] dark:text-white flex items-center justify-center font-bold text-xs">
-                    SK
-                  </div>
-                  <div>
-                    <h4 className="font-bold text-sm text-neutral-900 dark:text-white">Sarah Kim</h4>
-                    <p className="text-xs text-neutral-500 dark:text-[#8A8A8A]">SAT Math 800 · Tashkent</p>
-                  </div>
-                </div>
-                <Badge variant="accent">98% Match</Badge>
-              </div>
-              <p className="text-xs text-neutral-700 dark:text-[#D4D4D4] leading-relaxed">
-                Solving 40 hard calculus & geometry problems every Saturday morning together.
-              </p>
-              <div className="flex items-center gap-2 pt-2 border-t border-neutral-200 dark:border-[#242424] text-[11px] text-neutral-500 dark:text-[#8A8A8A]">
-                <span>📚 SAT Mathematics</span>
-                <span>•</span>
-                <span className="text-neutral-900 dark:text-white font-medium">⚡ Available Weekends</span>
-              </div>
-            </div>
+          {/* Right — connection diagram */}
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.6, delay: 0.2 }}
+            className="relative h-80 lg:h-[420px] hidden sm:block"
+          >
+            {/* Background card */}
+            <div className="absolute inset-0 bg-[#0A0A0A] border border-[#1E1E1E] rounded-[20px] overflow-hidden">
+              {/* SVG connection lines */}
+              <svg className="absolute inset-0 w-full h-full" xmlns="http://www.w3.org/2000/svg">
+                <ConnectionLine x1={50} y1={50} x2={25} y2={20} delay={0.8} />
+                <ConnectionLine x1={50} y1={50} x2={75} y2={20} delay={0.9} />
+                <ConnectionLine x1={50} y1={50} x2={15} y2={70} delay={1.0} />
+                <ConnectionLine x1={50} y1={50} x2={85} y2={70} delay={1.1} />
+                <ConnectionLine x1={50} y1={50} x2={50} y2={88} delay={1.2} />
+              </svg>
 
-            {/* Card 2 */}
-            <div className="bg-neutral-50 dark:bg-[#141414] border border-neutral-300 dark:border-[#2E2E2E] rounded-2xl p-5 space-y-4 shadow-sm">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-neutral-200 text-neutral-900 dark:bg-[#1F1F1F] border border-neutral-300 dark:border-[#2E2E2E] dark:text-white flex items-center justify-center font-bold text-xs">
-                    DP
-                  </div>
-                  <div>
-                    <h4 className="font-bold text-sm text-neutral-900 dark:text-white">David Park</h4>
-                    <p className="text-xs text-neutral-500 dark:text-[#8A8A8A]">Python AI Dev · Campus</p>
-                  </div>
-                </div>
-                <Badge variant="accent">94% Match</Badge>
-              </div>
-              <p className="text-xs text-neutral-700 dark:text-[#D4D4D4] leading-relaxed">
-                Fine-tuning open-source LLMs & building agents with FastAPI and LangChain.
-              </p>
-              <div className="flex items-center gap-2 pt-2 border-t border-neutral-200 dark:border-[#242424] text-[11px] text-neutral-500 dark:text-[#8A8A8A]">
-                <span>💻 PyTorch & AI</span>
-                <span>•</span>
-                <span className="text-neutral-900 dark:text-white font-medium">🚀 Looking for co-builder</span>
-              </div>
-            </div>
-
-            {/* Card 3 */}
-            <div className="bg-neutral-50 dark:bg-[#141414] border border-neutral-200 dark:border-[#242424] rounded-2xl p-5 space-y-4 hover:border-neutral-300 dark:hover:border-[#383838] transition-all shadow-xs">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-neutral-200 text-neutral-900 dark:bg-[#1F1F1F] border border-neutral-300 dark:border-[#2E2E2E] dark:text-white flex items-center justify-center font-bold text-xs">
-                    MV
-                  </div>
-                  <div>
-                    <h4 className="font-bold text-sm text-neutral-900 dark:text-white">Marcus Vance</h4>
-                    <p className="text-xs text-neutral-500 dark:text-[#8A8A8A]">IELTS 8.5 Circle · ~2 km</p>
-                  </div>
-                </div>
-                <Badge variant="accent">91% Match</Badge>
-              </div>
-              <p className="text-xs text-neutral-700 dark:text-[#D4D4D4] leading-relaxed">
-                Daily 30-minute English speaking mock tests & essay peer reviewing.
-              </p>
-              <div className="flex items-center gap-2 pt-2 border-t border-neutral-200 dark:border-[#242424] text-[11px] text-neutral-500 dark:text-[#8A8A8A]">
-                <span>🌎 IELTS Speaking</span>
-                <span>•</span>
-                <span className="text-neutral-900 dark:text-white font-medium">🟢 Online Now</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* 3. Categories Grid */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="space-y-8">
-          <div className="text-center max-w-xl mx-auto space-y-2">
-            <p className="text-xs font-bold text-amber-600 dark:text-amber-400 uppercase tracking-wider">Explore Activities</p>
-            <h2 className="text-3xl sm:text-4xl font-black text-neutral-900 dark:text-white tracking-tight">Communities built for doing</h2>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-            {categories.map((cat, idx) => (
-              <div
-                key={idx}
-                className="bg-white dark:bg-[#0F0F0F] border border-neutral-200 dark:border-[#242424] rounded-2xl p-6 hover:border-neutral-300 dark:hover:border-[#3D3D3D] hover:bg-neutral-50 dark:hover:bg-[#141414] transition-all space-y-3 shadow-xs"
+              {/* Center node — WithMe */}
+              <motion.div
+                initial={{ opacity: 0, scale: 0 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ duration: 0.6, delay: 0.6 }}
+                className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-10"
               >
-                <div className="flex items-center justify-between">
-                  <span className="text-2xl">{cat.icon}</span>
-                  <span className="text-[11px] font-bold text-neutral-600 dark:text-[#8A8A8A] bg-neutral-100 dark:bg-[#141414] border border-neutral-200 dark:border-[#242424] px-2.5 py-0.5 rounded-full">
-                    {cat.count}
-                  </span>
+                <div className="w-16 h-16 rounded-full bg-[#FFAA2B] border-4 border-[#000] flex items-center justify-center shadow-[0_0_32px_rgba(255,170,43,0.4)]">
+                  <span className="text-black font-black text-base">W</span>
                 </div>
-                <h3 className="text-base font-bold text-neutral-900 dark:text-white">{cat.title}</h3>
-                <p className="text-xs text-neutral-600 dark:text-[#8A8A8A] leading-relaxed">{cat.desc}</p>
-              </div>
+                <div className="absolute -bottom-6 left-1/2 -translate-x-1/2 whitespace-nowrap text-[11px] font-bold text-[#FFAA2B]">
+                  WithMe
+                </div>
+              </motion.div>
+
+              {/* Outer nodes */}
+              <ConnectionNode x={25} y={18} label="Study" delay={0.8} />
+              <ConnectionNode x={75} y={18} label="Gaming" delay={0.9} />
+              <ConnectionNode x={12} y={70} label="Reading" delay={1.0} size="sm" color="#444" />
+              <ConnectionNode x={88} y={70} label="Projects" delay={1.1} size="sm" color="#444" />
+              <ConnectionNode x={50} y={88} label="Music" delay={1.2} size="sm" color="#333" />
+            </div>
+          </motion.div>
+        </div>
+      </section>
+
+      {/* ── Features ───────────────────────────────────── */}
+      <section className="py-24 border-b border-[#1A1A1A]">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6">
+          <div className="text-center mb-14">
+            <h2 className="text-3xl font-bold text-white mb-3">Built for real connections</h2>
+            <p className="text-[#8A8A8A] text-sm max-w-md mx-auto">
+              Everything you need to find, connect, and collaborate with the right people.
+            </p>
+          </div>
+
+          <div className="grid md:grid-cols-3 gap-5">
+            {features.map((f, i) => (
+              <motion.div
+                key={i}
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: i * 0.1 }}
+                className="bg-[#0F0F0F] border border-[#1E1E1E] rounded-[14px] p-6 hover:border-[#292929] transition-colors"
+              >
+                <div className="w-10 h-10 rounded-[10px] bg-[#141414] border border-[#2A2A2A] flex items-center justify-center mb-4">
+                  {f.icon}
+                </div>
+                <h3 className="font-semibold text-white text-sm mb-2">{f.title}</h3>
+                <p className="text-xs text-[#8A8A8A] leading-relaxed">{f.desc}</p>
+              </motion.div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* 4. Core Features */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="bg-white dark:bg-[#0F0F0F] border border-neutral-200 dark:border-[#242424] rounded-3xl p-8 sm:p-14 shadow-lg">
-          <div className="max-w-xl mb-12 space-y-2">
-            <p className="text-xs font-bold text-amber-600 dark:text-amber-400 uppercase tracking-wider">Engineered for Connection</p>
-            <h2 className="text-3xl sm:text-4xl font-black text-neutral-900 dark:text-white tracking-tight">Everything you need to find your partner</h2>
+      {/* ── Categories ─────────────────────────────────── */}
+      <section className="py-24 border-b border-[#1A1A1A]">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6">
+          <div className="text-center mb-14">
+            <h2 className="text-3xl font-bold text-white mb-3">Find your community</h2>
+            <p className="text-[#8A8A8A] text-sm">Thousands of people across every interest area</p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {features.map((feat, idx) => (
-              <div key={idx} className="space-y-3">
-                <div className="w-10 h-10 rounded-xl bg-neutral-100 dark:bg-[#141414] border border-neutral-200 dark:border-[#292929] flex items-center justify-center shadow-xs">
-                  {feat.icon}
-                </div>
-                <h3 className="text-base font-bold text-neutral-900 dark:text-white">{feat.title}</h3>
-                <p className="text-xs text-neutral-600 dark:text-[#8A8A8A] leading-relaxed">{feat.desc}</p>
-              </div>
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+            {[
+              { label: 'Study & SAT/IELTS', count: '450+ peers', emoji: '📚' },
+              { label: 'Coding & Tech',     count: '620+ devs',   emoji: '💻' },
+              { label: 'Startups & MVPs',   count: '280+ builders', emoji: '🚀' },
+              { label: 'Gaming & Co-op',    count: '510+ gamers',  emoji: '🎮' },
+              { label: 'Language Exchange', count: '390+ speakers', emoji: '🌎' },
+              { label: 'Design & Creative', count: '210+ designers', emoji: '🎨' },
+            ].map((cat, i) => (
+              <motion.div
+                key={i}
+                initial={{ opacity: 0, y: 12 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: i * 0.08 }}
+                className="group bg-[#0F0F0F] border border-[#1E1E1E] rounded-[12px] p-5 hover:border-[#292929] hover:bg-[#141414] transition-all cursor-pointer"
+                onClick={() => window.location.href = '/discover'}
+              >
+                <div className="text-2xl mb-3">{cat.emoji}</div>
+                <h4 className="text-sm font-semibold text-white mb-1">{cat.label}</h4>
+                <p className="text-[11px] text-[#555]">{cat.count}</p>
+              </motion.div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* 5. FAQ Section */}
-      <section className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="space-y-8">
-          <div className="text-center space-y-2">
-            <p className="text-xs font-bold text-amber-600 dark:text-amber-400 uppercase tracking-wider">Got Questions?</p>
-            <h2 className="text-3xl sm:text-4xl font-black text-neutral-900 dark:text-white tracking-tight">Frequently Asked Questions</h2>
-          </div>
-
-          <div className="space-y-3">
-            {faqs.map((faq, idx) => (
+      {/* ── FAQ ────────────────────────────────────────── */}
+      <section className="py-24 border-b border-[#1A1A1A]">
+        <div className="max-w-2xl mx-auto px-4 sm:px-6">
+          <h2 className="text-3xl font-bold text-white mb-10 text-center">Common questions</h2>
+          <div className="space-y-2">
+            {faqs.map((faq, i) => (
               <div
-                key={idx}
-                className="bg-white dark:bg-[#0F0F0F] border border-neutral-200 dark:border-[#242424] rounded-2xl overflow-hidden transition-all shadow-xs"
+                key={i}
+                className="bg-[#0F0F0F] border border-[#1E1E1E] rounded-[12px] overflow-hidden"
               >
                 <button
                   type="button"
-                  onClick={() => setOpenFaq(openFaq === idx ? null : idx)}
-                  className="w-full flex items-center justify-between p-5 text-left text-sm font-bold text-neutral-900 dark:text-white hover:text-neutral-700 dark:hover:text-neutral-200 cursor-pointer"
+                  className="w-full flex items-center justify-between px-5 py-4 text-left cursor-pointer hover:bg-[#141414] transition-colors"
+                  onClick={() => setOpenFaq(openFaq === i ? null : i)}
                 >
-                  <div className="flex items-center gap-3">
-                    <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-neutral-100 dark:bg-[#141414] border border-neutral-200 dark:border-[#242424] text-amber-600 dark:text-amber-400">
-                      {faq.category}
-                    </span>
-                    <span>{faq.q}</span>
-                  </div>
-                  <ChevronDown
-                    className={`w-4 h-4 text-neutral-500 dark:text-[#8A8A8A] transition-transform duration-200 shrink-0 ml-2 ${
-                      openFaq === idx ? 'rotate-180 text-neutral-900 dark:text-white' : ''
-                    }`}
-                  />
+                  <span className="text-sm font-medium text-white">{faq.q}</span>
+                  <span className={`text-[#555] text-lg transition-transform ${openFaq === i ? 'rotate-45' : ''}`}>+</span>
                 </button>
-                {openFaq === idx && (
-                  <div className="px-5 pb-5 pt-1 text-xs text-neutral-600 dark:text-[#8A8A8A] leading-relaxed border-t border-neutral-100 dark:border-[#1F1F1F]">
-                    {faq.a}
+                {openFaq === i && (
+                  <div className="px-5 pb-4">
+                    <p className="text-sm text-[#8A8A8A] leading-relaxed">{faq.a}</p>
                   </div>
                 )}
               </div>
@@ -341,23 +317,29 @@ export const LandingPage: React.FC = () => {
         </div>
       </section>
 
-      {/* 6. Call To Action Footer Banner */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16">
-        <div className="bg-white dark:bg-[#0F0F0F] border border-neutral-200 dark:border-[#242424] rounded-3xl p-10 sm:p-16 text-center space-y-6 shadow-xl">
-          <h2 className="text-3xl sm:text-5xl font-black text-neutral-900 dark:text-white tracking-tight max-w-2xl mx-auto">
-            Ready to meet people who share your passion?
-          </h2>
-          <p className="text-sm text-neutral-600 dark:text-[#8A8A8A] max-w-lg mx-auto">
-            Join hundreds of motivated students, developers, and creators on WithMe today.
-          </p>
-          <div className="pt-2">
+      {/* ── CTA ────────────────────────────────────────── */}
+      <section className="py-24">
+        <div className="max-w-2xl mx-auto px-4 sm:px-6 text-center">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="space-y-6"
+          >
+            <h2 className="text-4xl font-black text-white leading-tight">
+              Ready to find<br />
+              your people?
+            </h2>
+            <p className="text-[#8A8A8A] text-sm">
+              Join 50,000+ members already connecting on WithMe.
+            </p>
             <Link to="/register">
-              <Button size="lg" className="bg-neutral-900 hover:bg-neutral-800 dark:bg-white dark:hover:bg-neutral-200 text-white dark:text-black font-bold px-10">
+              <Button variant="primary" size="lg" className="font-bold gap-2 mx-auto">
                 Get Started Free
-                <ArrowRight className="w-4 h-4 ml-2" />
+                <ArrowRight className="w-4 h-4" />
               </Button>
             </Link>
-          </div>
+          </motion.div>
         </div>
       </section>
     </div>

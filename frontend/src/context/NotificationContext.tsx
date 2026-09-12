@@ -5,7 +5,6 @@ import {
   Bell,
   CheckCircle2,
   AlertCircle,
-  Info,
   MessageSquare,
   Users,
   Rocket,
@@ -26,7 +25,23 @@ export interface ToastItem {
   duration?: number;
 }
 
+export interface NotificationItem {
+  id: string;
+  type: string;
+  title: string;
+  message: string;
+  link?: string;
+  is_read: boolean;
+  created_at: string;
+  sender_name?: string;
+  sender_avatar?: string;
+}
+
 interface NotificationContextType {
+  unreadCount: number;
+  notifications: NotificationItem[];
+  refreshNotifications: (silent?: boolean) => Promise<void>;
+  markAllRead: () => Promise<void>;
   showNotification: (item: Omit<ToastItem, 'id'>) => void;
   removeNotification: (id: string) => void;
   notify: {
@@ -67,10 +82,12 @@ const playChime = () => {
 
 export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [toasts, setToasts] = useState<ToastItem[]>([]);
+  const [notifications, setNotifications] = useState<NotificationItem[]>([]);
+  const [unreadCount, setUnreadCount] = useState<number>(0);
+
   const { user } = useAuth();
   const navigate = useNavigate();
-  const seenIdsRef = useRef<Set<string>>(new Set());
-  const initialFetchDone = useRef(false);
+  const hasFetchedRef = useRef(false);
 
   const removeNotification = useCallback((id: string) => {
     setToasts((prev) => prev.filter((t) => t.id !== id));
@@ -84,7 +101,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
 
     setToasts((prev) => [newItem, ...prev.slice(0, 4)]); // Keep max 5 visible toasts
 
-    const duration = item.duration ?? 5500;
+    const duration = item.duration ?? 5000;
     if (duration > 0) {
       setTimeout(() => {
         removeNotification(id);
@@ -92,94 +109,95 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
     }
   }, [removeNotification]);
 
+  // Fetch notifications once on demand or on user login (cached, no interval polling)
+  const refreshNotifications = useCallback(async (silent = true) => {
+    if (!user) return;
+    try {
+      const res = await api.get('/notifications', {
+        headers: silent ? { 'X-Silent': 'true' } : {}
+      });
+      const notifs: NotificationItem[] = res.data.notifications || [];
+      const unread: number = res.data.unread_count ?? notifs.filter((n) => !n.is_read).length;
+
+      setNotifications(notifs);
+      setUnreadCount(unread);
+    } catch {
+      // Silent error handling for network glitch
+    }
+  }, [user]);
+
+  // Mark all notifications as read
+  const markAllRead = useCallback(async () => {
+    try {
+      await api.post('/notifications/read-all', {}, {
+        headers: { 'X-Silent': 'true' }
+      });
+      setUnreadCount(0);
+      setNotifications((prev) => prev.map((n) => ({ ...n, is_read: true })));
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  // Fetch cached notifications ONCE when user signs in — NO setInterval polling
+  useEffect(() => {
+    if (!user) {
+      hasFetchedRef.current = false;
+      setNotifications([]);
+      setUnreadCount(0);
+      return;
+    }
+
+    if (!hasFetchedRef.current) {
+      hasFetchedRef.current = true;
+      refreshNotifications(true);
+    }
+  }, [user, refreshNotifications]);
+
   const notify = {
-    success: (titleOrMsg: string, maybeMsg?: string, link?: string) =>
+    success: (titleOrMsg: string, maybeMsg?: string, link?: string) => {
       showNotification({
         title: maybeMsg ? titleOrMsg : 'Success',
         message: maybeMsg || titleOrMsg,
         type: 'success',
         link
-      }),
-    info: (titleOrMsg: string, maybeMsg?: string, link?: string) =>
+      });
+      refreshNotifications(true);
+    },
+    info: (titleOrMsg: string, maybeMsg?: string, link?: string) => {
       showNotification({
         title: maybeMsg ? titleOrMsg : 'Notice',
         message: maybeMsg || titleOrMsg,
         type: 'info',
         link
-      }),
+      });
+      refreshNotifications(true);
+    },
     error: (titleOrMsg: string, maybeMsg?: string) =>
       showNotification({
         title: maybeMsg ? titleOrMsg : 'Error',
         message: maybeMsg || titleOrMsg,
         type: 'error'
       }),
-    group: (titleOrMsg: string, maybeMsg?: string, link?: string) =>
+    group: (titleOrMsg: string, maybeMsg?: string, link?: string) => {
       showNotification({
         title: maybeMsg ? titleOrMsg : 'Group Notification',
         message: maybeMsg || titleOrMsg,
         type: 'group',
         link
-      }),
-    project: (titleOrMsg: string, maybeMsg?: string, link?: string) =>
+      });
+      refreshNotifications(true);
+    },
+    project: (titleOrMsg: string, maybeMsg?: string, link?: string) => {
       showNotification({
         title: maybeMsg ? titleOrMsg : 'Project Notification',
         message: maybeMsg || titleOrMsg,
         type: 'project',
         link
-      })
-  };
-
-  // Poll for live incoming backend notifications and pop them up on screen
-  useEffect(() => {
-    if (!user) {
-      seenIdsRef.current.clear();
-      initialFetchDone.current = false;
-      return;
+      });
+      refreshNotifications(true);
     }
-
-    const poll = async () => {
-      try {
-        const res = await api.get('/notifications');
-        const notifs = res.data.notifications || [];
-
-        if (!initialFetchDone.current) {
-          // On first load, seed the seen IDs without popping existing notifications up
-          notifs.forEach((n: any) => seenIdsRef.current.add(n.id));
-          initialFetchDone.current = true;
-          return;
-        }
-
-        // For any new unread notification not seen yet, trigger screen popup!
-        for (const n of notifs) {
-          if (!seenIdsRef.current.has(n.id)) {
-            seenIdsRef.current.add(n.id);
-            if (!n.is_read) {
-              let type: ToastItem['type'] = 'info';
-              if (n.type === 'group_invite') type = 'group';
-              else if (n.type === 'project_invite') type = 'project';
-              else if (n.type === 'message') type = 'message';
-              else if (n.type === 'connection_accepted') type = 'success';
-
-              showNotification({
-                title: n.title || 'New Notification',
-                message: n.message || '',
-                type,
-                link: n.link,
-                sender_name: n.sender_name,
-                sender_avatar: n.sender_avatar
-              });
-            }
-          }
-        }
-      } catch {
-        // silent fail on network glitch
-      }
-    };
-
-    poll();
-    const interval = setInterval(poll, 7000); // Check every 7s
-    return () => clearInterval(interval);
-  }, [user, showNotification]);
+  };
 
   const handleToastClick = (toast: ToastItem) => {
     if (toast.link) {
@@ -191,55 +209,65 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
   const getIcon = (type?: string) => {
     switch (type) {
       case 'success':
-        return <CheckCircle2 className="w-5 h-5 text-emerald-500 shrink-0" />;
+        return <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />;
       case 'error':
-        return <AlertCircle className="w-5 h-5 text-red-500 shrink-0" />;
+        return <AlertCircle className="w-4 h-4 text-red-400 shrink-0" />;
       case 'group':
-        return <Users className="w-5 h-5 text-blue-500 shrink-0" />;
+        return <Users className="w-4 h-4 text-blue-400 shrink-0" />;
       case 'project':
-        return <Rocket className="w-5 h-5 text-amber-500 shrink-0" />;
+        return <Rocket className="w-4 h-4 text-[#FFAA2B] shrink-0" />;
       case 'message':
-        return <MessageSquare className="w-5 h-5 text-purple-500 shrink-0" />;
+        return <MessageSquare className="w-4 h-4 text-purple-400 shrink-0" />;
       default:
-        return <Bell className="w-5 h-5 text-primary shrink-0" />;
+        return <Bell className="w-4 h-4 text-[#FFAA2B] shrink-0" />;
     }
   };
 
   return (
-    <NotificationContext.Provider value={{ showNotification, removeNotification, notify }}>
+    <NotificationContext.Provider
+      value={{
+        unreadCount,
+        notifications,
+        refreshNotifications,
+        markAllRead,
+        showNotification,
+        removeNotification,
+        notify
+      }}
+    >
       {children}
 
       {/* Floating On-Screen Popups Container */}
       <div
         aria-live="polite"
-        className="fixed top-20 right-4 sm:right-6 z-[9999] flex flex-col gap-3 max-w-sm sm:max-w-md w-full pointer-events-none"
+        className="fixed top-16 right-4 sm:right-6 z-[9999] flex flex-col gap-2.5 max-w-sm sm:max-w-md w-full pointer-events-none"
       >
         <AnimatePresence mode="popLayout">
           {toasts.map((t) => (
             <motion.div
               key={t.id}
               layout
-              initial={{ opacity: 0, y: -25, scale: 0.92 }}
+              initial={{ opacity: 0, y: -20, scale: 0.95 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: -15, scale: 0.95 }}
-              transition={{ type: 'spring', damping: 24, stiffness: 350 }}
-              className="pointer-events-auto group relative overflow-hidden rounded-2xl bg-white/95 dark:bg-[#121212]/95 backdrop-blur-xl border border-neutral-200 dark:border-[#282828] p-4 shadow-2xl hover:shadow-3xl transition-all cursor-pointer"
+              exit={{ opacity: 0, y: -10, scale: 0.95 }}
+              transition={{ duration: 0.2 }}
+              className="pointer-events-auto group relative overflow-hidden rounded-[14px] bg-[#141414] border border-[#292929] p-3.5 shadow-2xl hover:border-[#383838] transition-all cursor-pointer"
               onClick={() => handleToastClick(t)}
             >
               {/* Subtle top indicator bar */}
               <div
-                className={`absolute top-0 left-0 right-0 h-1 ${
+                className={`absolute top-0 left-0 right-0 h-0.5 ${
                   t.type === 'success'
-                    ? 'bg-emerald-500'
+                    ? 'bg-emerald-400'
                     : t.type === 'error'
-                    ? 'bg-red-500'
+                    ? 'bg-red-400'
                     : t.type === 'group'
-                    ? 'bg-blue-500'
+                    ? 'bg-blue-400'
                     : t.type === 'project'
-                    ? 'bg-amber-500'
+                    ? 'bg-[#FFAA2B]'
                     : t.type === 'message'
-                    ? 'bg-purple-500'
-                    : 'bg-primary'
+                    ? 'bg-purple-400'
+                    : 'bg-[#FFAA2B]'
                 }`}
               />
 
@@ -248,26 +276,24 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
                   <img
                     src={t.sender_avatar}
                     alt={t.sender_name || 'Sender'}
-                    className="w-9 h-9 rounded-full object-cover border border-neutral-200 dark:border-[#333] shrink-0"
+                    className="w-8 h-8 rounded-full object-cover border border-[#2A2A2A] shrink-0"
                   />
                 ) : (
-                  <div className="p-2 rounded-xl bg-neutral-100 dark:bg-[#1E1E1E] shrink-0">
+                  <div className="p-1.5 rounded-[8px] bg-[#1A1A1A] border border-[#262626] shrink-0">
                     {getIcon(t.type)}
                   </div>
                 )}
 
-                <div className="flex-1 min-w-0 pr-6">
-                  <div className="flex items-center gap-2">
-                    <h4 className="text-xs font-bold text-neutral-900 dark:text-white tracking-tight truncate">
+                <div className="flex-1 min-w-0 pr-5">
+                  <div className="flex items-center gap-1.5">
+                    <h4 className="text-xs font-semibold text-white tracking-tight truncate">
                       {t.title}
                     </h4>
                     {t.link && (
-                      <span className="text-[10px] text-neutral-500 dark:text-[#8A8A8A] flex items-center gap-0.5">
-                        <ExternalLink className="w-2.5 h-2.5" />
-                      </span>
+                      <ExternalLink className="w-2.5 h-2.5 text-[#666]" />
                     )}
                   </div>
-                  <p className="text-xs text-neutral-600 dark:text-[#D4D4D4] mt-0.5 leading-relaxed line-clamp-2">
+                  <p className="text-xs text-[#8A8A8A] mt-0.5 leading-relaxed line-clamp-2">
                     {t.message}
                   </p>
                 </div>
@@ -278,10 +304,10 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
                     e.stopPropagation();
                     removeNotification(t.id);
                   }}
-                  className="absolute top-3 right-3 p-1 rounded-lg text-neutral-400 hover:text-neutral-900 dark:text-[#707070] dark:hover:text-white hover:bg-neutral-100 dark:hover:bg-[#202020] transition-colors cursor-pointer"
+                  className="absolute top-2.5 right-2.5 p-1 rounded-md text-[#555] hover:text-white hover:bg-[#1E1E1E] transition-colors cursor-pointer"
                   title="Dismiss"
                 >
-                  <X className="w-4 h-4" />
+                  <X className="w-3.5 h-3.5" />
                 </button>
               </div>
             </motion.div>
@@ -292,10 +318,23 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
   );
 };
 
+const defaultNotificationContext: NotificationContextType = {
+  unreadCount: 0,
+  notifications: [],
+  refreshNotifications: async () => {},
+  markAllRead: async () => {},
+  showNotification: () => {},
+  removeNotification: () => {},
+  notify: {
+    success: () => {},
+    info: () => {},
+    error: () => {},
+    group: () => {},
+    project: () => {}
+  }
+};
+
 export const useNotification = (): NotificationContextType => {
   const context = useContext(NotificationContext);
-  if (!context) {
-    throw new Error('useNotification must be used within a NotificationProvider');
-  }
-  return context;
+  return context || defaultNotificationContext;
 };

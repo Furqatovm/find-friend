@@ -1,111 +1,101 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Rocket, Plus } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
-import { api } from '@/lib/api';
+import { getProjects } from '@/api';
 import { ProjectCard } from '@/components/cards/ProjectCard';
-import { Button } from '@/components/ui/Button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/Select';
 import { EmptyState } from '@/components/common/EmptyState';
 import { UserCardSkeleton } from '@/components/ui/Skeleton';
 import type { Project } from '@/types';
 
+const CATEGORIES = ['All', 'Startups', 'Game Dev', 'Open Source', 'AI', 'EdTech'];
+const STAGES = ['All', 'Idea', 'Prototype', 'MVP', 'Launched'];
+
 export const ProjectsPage: React.FC = () => {
   const [category, setCategory] = useState('All');
   const [stage, setStage] = useState('All');
 
-  const { data: projects = [], isLoading: loading, refetch: fetchProjects } = useQuery<Project[]>({
+  const { data: projects = [], isLoading, refetch } = useQuery<Project[]>({
     queryKey: ['projects', category, stage],
-    queryFn: async () => {
-      const params: any = {};
-      if (category !== 'All') params.category = category;
-      if (stage !== 'All') params.stage = stage;
-
-      const res = await api.get('/projects', { params });
-      return res.data || [];
-    }
+    queryFn: ({ signal }) =>
+      getProjects({ category, stage }, signal),
   });
 
-  const categories = ['All', 'Startups', 'Game Dev', 'Open Source', 'AI', 'EdTech'];
-  const stages = ['All', 'Idea', 'Prototype', 'MVP', 'Launched'];
-
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-8 text-neutral-900 dark:text-white transition-colors duration-200">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-black text-neutral-900 dark:text-white tracking-tight">COLLABORATIVE PROJECTS</h1>
-          <p className="text-xs text-neutral-500 dark:text-[#8A8A8A] mt-1">
-            Find technical co-founders, UI/UX designers, developers, and creators to build real products.
-          </p>
+    <div className="min-h-screen bg-[#000]">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+        {/* Header */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-bold text-white">Collaborative Projects</h1>
+            <p className="text-xs text-[#555] mt-1">
+              Find co-founders, designers, and developers to build real products
+            </p>
+          </div>
+          <Link
+            to="/projects/create"
+            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-[10px] bg-[#FFAA2B] hover:bg-[#FFB83D] text-black text-sm font-bold transition-all shrink-0"
+          >
+            <Plus className="w-4 h-4" />
+            Create Project
+          </Link>
         </div>
 
-        <Link to="/projects/create">
-          <Button variant="primary" size="md" className="font-bold">
-            <Plus className="w-4 h-4 mr-1.5" />
-            Start a Project
-          </Button>
-        </Link>
+        {/* Filters */}
+        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+          {/* Category pills */}
+          <div className="flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar flex-1">
+            {CATEGORIES.map((cat) => (
+              <button
+                key={cat}
+                type="button"
+                onClick={() => setCategory(cat)}
+                className={`px-3.5 py-1.5 rounded-[20px] text-xs font-semibold whitespace-nowrap transition-all cursor-pointer border ${
+                  category === cat
+                    ? 'bg-[#FFAA2B] text-black border-[#FFAA2B]'
+                    : 'bg-transparent text-[#8A8A8A] border-[#292929] hover:text-white hover:border-[#3D3D3D]'
+                }`}
+              >
+                {cat}
+              </button>
+            ))}
+          </div>
+
+          {/* Stage select */}
+          <div className="shrink-0 w-36">
+            <Select value={stage} onValueChange={setStage}>
+              <SelectTrigger className="h-8 text-xs">
+                <SelectValue placeholder="Stage" />
+              </SelectTrigger>
+              <SelectContent>
+                {STAGES.map((s) => (
+                  <SelectItem key={s} value={s}>{s === 'All' ? 'All Stages' : s}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+
+        {/* Grid */}
+        {isLoading ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {[1, 2, 3].map((i) => <UserCardSkeleton key={i} />)}
+          </div>
+        ) : projects.length === 0 ? (
+          <EmptyState
+            icon={<Rocket className="w-8 h-8 text-[#555]" />}
+            title="No projects found"
+            description="Have an idea? Create a project and find your teammates!"
+          />
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {projects.map((proj) => (
+              <ProjectCard key={proj.id} project={proj} onUpdate={refetch} />
+            ))}
+          </div>
+        )}
       </div>
-
-      {/* Filter Bar */}
-      <div className="bg-white dark:bg-[#0F0F0F] border border-neutral-200 dark:border-[#242424] rounded-2xl p-4 flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-sm">
-        <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar">
-          {categories.map((c) => (
-            <button
-              key={c}
-              type="button"
-              onClick={() => setCategory(c)}
-              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold border transition-all cursor-pointer whitespace-nowrap shadow-xs ${
-                category === c
-                  ? 'bg-neutral-900 text-white border-neutral-900 dark:bg-white dark:text-black dark:border-white'
-                  : 'bg-neutral-100 text-neutral-600 hover:text-neutral-900 border-neutral-200 dark:bg-[#141414] dark:border-[#242424] dark:text-[#8A8A8A] dark:hover:text-white'
-              }`}
-            >
-              {c}
-            </button>
-          ))}
-        </div>
-
-        <div className="flex items-center gap-2 min-w-[140px]">
-          <span className="text-xs text-neutral-500 dark:text-[#8A8A8A] font-medium shrink-0">Stage:</span>
-          <Select value={stage} onValueChange={setStage}>
-            <SelectTrigger className="h-9 text-xs">
-              <SelectValue placeholder="Select stage" />
-            </SelectTrigger>
-            <SelectContent>
-              {stages.map((s) => (
-                <SelectItem key={s} value={s}>
-                  {s}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
-
-      {/* Projects Grid */}
-      {loading ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-          {[1, 2, 3].map((i) => (
-            <UserCardSkeleton key={i} />
-          ))}
-        </div>
-      ) : projects.length === 0 ? (
-        <EmptyState
-          icon={<Rocket className="w-8 h-8 text-neutral-400 dark:text-[#5C5C5C]" />}
-          title="No projects found"
-          description="Have an idea for a tool, startup, or game? Create a project and find teammates!"
-          actionLabel="Create a Project"
-          onAction={() => {}}
-        />
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-          {projects.map((proj) => (
-            <ProjectCard key={proj.id} project={proj} onUpdate={fetchProjects} />
-          ))}
-        </div>
-      )}
     </div>
   );
 };

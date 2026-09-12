@@ -2,20 +2,29 @@
 <html lang="en" class="dark">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" type="image/png" href="/favicon.png" />
+    <link rel="apple-touch-icon" href="/logo.png" />
+    <link rel="manifest" href="/site.webmanifest" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0" />
+    
+    <!-- Primary Meta Tags -->
     <title>WithMe — Find Friends, Study Buddies & Project Teammates</title>
-    <meta name="description" content="Connect with people who share your passion, study goals, hobbies, and schedule. Find verified peers for study, coding, language exchange, and activities." />
-    <meta name="keywords" content="find friend, study buddy, coding partner, IELTS partner, project collaborator, hobby group, WithMe" />
-    <meta name="author" content="WithMe App" />
-    <meta name="theme-color" content="#4F46E5" />
+    <meta name="title" content="WithMe — Find Friends, Study Buddies & Project Teammates" />
+    <meta name="description" content="Connect with verified peers around shared interests, study goals, coding sprints, SAT/IELTS preparation, and collaborative startup projects. Private, secure, and smart matching." />
+    <meta name="keywords" content="find friend, study buddy, coding partner, IELTS partner, project collaborator, startup team, study groups, hackathon teammates, WithMe" />
+    <meta name="author" content="WithMe Team" />
+    <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1" />
+    <meta name="theme-color" content="#000000" />
+    <meta name="color-scheme" content="dark" />
+    <link rel="canonical" href="https://find-friend-one.vercel.app/" />
 
-    <!-- Open Graph / Facebook / Telegram / WhatsApp -->
+    <!-- Open Graph / Facebook / WhatsApp / Telegram -->
     <meta property="og:type" content="website" />
     <meta property="og:url" content="https://find-friend-one.vercel.app/" />
     <meta property="og:site_name" content="WithMe" />
-    <meta property="og:title" content="WithMe — Find Friends & Project Teammates" />
-    <meta property="og:description" content="Discover compatible study partners, project teammates, and creators who share your goals." />
+    <meta property="og:locale" content="en_US" />
+    <meta property="og:title" content="WithMe — Find Friends, Study Buddies & Project Teammates" />
+    <meta property="og:description" content="Find your people for what you love. Connect around shared interests, skills, study sprints, and collaborative projects." />
     <meta property="og:image" content="https://find-friend-one.vercel.app/og-image.png" />
     <meta property="og:image:secure_url" content="https://find-friend-one.vercel.app/og-image.png" />
     <meta property="og:image:type" content="image/png" />
@@ -23,20 +32,64 @@
     <meta property="og:image:height" content="630" />
     <meta property="og:image:alt" content="WithMe — Find Friends, Study Buddies and Project Teammates" />
 
-    <!-- Twitter -->
+    <!-- Twitter / X Cards -->
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:url" content="https://find-friend-one.vercel.app/" />
-    <meta name="twitter:title" content="WithMe — Find Friends & Project Teammates" />
+    <meta name="twitter:title" content="WithMe — Find Friends, Study Buddies & Project Teammates" />
     <meta name="twitter:description" content="Discover compatible study partners, project teammates, and creators who share your goals." />
     <meta name="twitter:image" content="https://find-friend-one.vercel.app/og-image.png" />
-    <meta name="twitter:image:alt" content="WithMe — Find Friends & Project Teammates" />
+    <meta name="twitter:image:alt" content="WithMe Platform Preview" />
 
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <!-- Performance: Preconnect & Font Optimization -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
     <script src="https://accounts.google.com/gsi/client" async defer></script>
+
+    <!-- Schema.org JSON-LD Structured Data for Google Rich Results -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@graph": [
+        {
+          "@type": "WebSite",
+          "@id": "https://find-friend-one.vercel.app/#website",
+          "url": "https://find-friend-one.vercel.app/",
+          "name": "WithMe",
+          "description": "Find Friends, Study Buddies & Project Teammates",
+          "potentialAction": {
+            "@type": "SearchAction",
+            "target": "https://find-friend-one.vercel.app/discover?search={search_term_string}",
+            "query-input": "required name=search_term_string"
+          }
+        },
+        {
+          "@type": "WebApplication",
+          "@id": "https://find-friend-one.vercel.app/#webapp",
+          "name": "WithMe",
+          "url": "https://find-friend-one.vercel.app/",
+          "applicationCategory": "SocialNetworkingApplication",
+          "operatingSystem": "All",
+          "browserRequirements": "Requires JavaScript. Requires HTML5.",
+          "description": "Smart matching platform for finding study partners, coding teammates, language exchange, and activity groups.",
+          "offers": {
+            "@type": "Offer",
+            "price": "0",
+            "priceCurrency": "USD"
+          },
+          "featureList": [
+            "AI-powered compatibility matching",
+            "Privacy-first nearby geolocation",
+            "Scheduled study sprints and meetups",
+            "Collaborative project team building",
+            "End-to-end direct and group messaging"
+          ]
+        }
+      ]
+    }
+    </script>
   </head>
-  <body class="min-h-screen bg-[#F8F9FA] dark:bg-[#080808] text-neutral-900 dark:text-white transition-colors duration-200">
+  <body class="min-h-screen bg-[#000000] text-white antialiased">
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

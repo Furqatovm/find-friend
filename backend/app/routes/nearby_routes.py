@@ -7,28 +7,42 @@ nearby_bp = Blueprint('nearby', __name__, url_prefix='/api/nearby')
 @nearby_bp.route('/users', methods=['GET'])
 @jwt_required()
 def get_nearby_users():
-    radius = float(request.args.get('radius', 50.0))
+    try:
+        radius = float(request.args.get('radius', 50.0))
+    except (ValueError, TypeError):
+        radius = 50.0
     category = request.args.get('category')
     search = request.args.get('search')
+    lat = request.args.get('lat', type=float)
+    lon = request.args.get('lon', type=float)
     
     users = LocationService.get_nearby_users(
         current_user=request.current_user,
         max_radius_km=radius,
         category_filter=category,
-        search_query=search
+        search_query=search,
+        lat=lat,
+        lon=lon
     )
     return jsonify(users), 200
 
 @nearby_bp.route('/activities', methods=['GET'])
 @jwt_required()
 def get_nearby_activities():
-    radius = float(request.args.get('radius', 50.0))
+    try:
+        radius = float(request.args.get('radius', 50.0))
+    except (ValueError, TypeError):
+        radius = 50.0
     category = request.args.get('category')
+    lat = request.args.get('lat', type=float)
+    lon = request.args.get('lon', type=float)
     
     activities = LocationService.get_nearby_activities(
         current_user=request.current_user,
         max_radius_km=radius,
-        category_filter=category
+        category_filter=category,
+        lat=lat,
+        lon=lon
     )
     return jsonify(activities), 200
 

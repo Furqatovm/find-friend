@@ -6,7 +6,7 @@ class Interest(db.Model):
 
     id = db.Column(db.String(36), primary_key=True, default=generate_uuid)
     name = db.Column(db.String(50), unique=True, nullable=False, index=True)
-    category = db.Column(db.String(50), nullable=False, default='Other')
+    category = db.Column(db.String(50), nullable=False, default='Other', index=True)
     icon = db.Column(db.String(50), nullable=True)
 
     def to_dict(self):
@@ -21,8 +21,8 @@ class UserInterest(db.Model):
     __tablename__ = 'user_interests'
 
     id = db.Column(db.String(36), primary_key=True, default=generate_uuid)
-    user_id = db.Column(db.String(36), db.ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
-    interest_id = db.Column(db.String(36), db.ForeignKey('interests.id', ondelete='CASCADE'), nullable=False)
+    user_id = db.Column(db.String(36), db.ForeignKey('users.id', ondelete='CASCADE'), nullable=False, index=True)
+    interest_id = db.Column(db.String(36), db.ForeignKey('interests.id', ondelete='CASCADE'), nullable=False, index=True)
     
     interest = db.relationship('Interest')
 
@@ -39,7 +39,7 @@ class Skill(db.Model):
 
     id = db.Column(db.String(36), primary_key=True, default=generate_uuid)
     name = db.Column(db.String(50), unique=True, nullable=False, index=True)
-    category = db.Column(db.String(50), nullable=False, default='General')
+    category = db.Column(db.String(50), nullable=False, default='General', index=True)
 
     def to_dict(self):
         return {
@@ -52,8 +52,8 @@ class UserSkill(db.Model):
     __tablename__ = 'user_skills'
 
     id = db.Column(db.String(36), primary_key=True, default=generate_uuid)
-    user_id = db.Column(db.String(36), db.ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
-    skill_id = db.Column(db.String(36), db.ForeignKey('skills.id', ondelete='CASCADE'), nullable=False)
+    user_id = db.Column(db.String(36), db.ForeignKey('users.id', ondelete='CASCADE'), nullable=False, index=True)
+    skill_id = db.Column(db.String(36), db.ForeignKey('skills.id', ondelete='CASCADE'), nullable=False, index=True)
     level = db.Column(db.String(20), default='Beginner')  # Beginner, Intermediate, Advanced
 
     skill = db.relationship('Skill')
@@ -71,7 +71,7 @@ class Goal(db.Model):
 
     id = db.Column(db.String(36), primary_key=True, default=generate_uuid)
     title = db.Column(db.String(100), unique=True, nullable=False, index=True)
-    category = db.Column(db.String(50), nullable=False, default='General')
+    category = db.Column(db.String(50), nullable=False, default='General', index=True)
     icon = db.Column(db.String(50), nullable=True)
 
     def to_dict(self):
@@ -86,8 +86,8 @@ class UserGoal(db.Model):
     __tablename__ = 'user_goals'
 
     id = db.Column(db.String(36), primary_key=True, default=generate_uuid)
-    user_id = db.Column(db.String(36), db.ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
-    goal_id = db.Column(db.String(36), db.ForeignKey('goals.id', ondelete='CASCADE'), nullable=False)
+    user_id = db.Column(db.String(36), db.ForeignKey('users.id', ondelete='CASCADE'), nullable=False, index=True)
+    goal_id = db.Column(db.String(36), db.ForeignKey('goals.id', ondelete='CASCADE'), nullable=False, index=True)
 
     goal = db.relationship('Goal')
 
@@ -103,7 +103,7 @@ class Availability(db.Model):
     __tablename__ = 'availabilities'
 
     id = db.Column(db.String(36), primary_key=True, default=generate_uuid)
-    user_id = db.Column(db.String(36), db.ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
+    user_id = db.Column(db.String(36), db.ForeignKey('users.id', ondelete='CASCADE'), nullable=False, index=True)
     
     day_of_week = db.Column(db.String(20), nullable=False)  # Monday, Tuesday, etc. or Weekdays, Weekends
     time_slot = db.Column(db.String(50), nullable=False)    # Morning (08:00-12:00), Afternoon (12:00-18:00), Evening (18:00-22:00), Night (22:00+)

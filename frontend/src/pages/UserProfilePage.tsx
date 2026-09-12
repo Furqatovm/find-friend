@@ -27,6 +27,8 @@ import {
 import { useAuth } from '@/context/AuthContext';
 import { useLocation } from '@/context/LocationContext';
 import { useNotification } from '@/context/NotificationContext';
+import { PageSpinner } from '@/components/ui/Spinner';
+import { useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
@@ -38,6 +40,7 @@ import { ContactShareModal } from '@/components/common/ContactShareModal';
 import { ReportModal } from '@/components/common/ReportModal';
 import { FollowersModal } from '@/components/profile/FollowersModal';
 import { getInitials } from '@/lib/utils';
+import { uploadFile } from '@/api';
 
 export const UserProfilePage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -50,7 +53,6 @@ export const UserProfilePage: React.FC = () => {
   const targetId = isOwnProfile ? currentUser?.id : id;
 
   const [profileData, setProfileData] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
   const [connStatus, setConnStatus] = useState<string>('none');
   const [connectLoading, setConnectLoading] = useState(false);
 
@@ -113,32 +115,17 @@ export const UserProfilePage: React.FC = () => {
     'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=300&auto=format&fit=crop&q=80'
   ];
 
-  const fetchProfile = async () => {
-    if (!targetId) return;
-    setLoading(true);
-    try {
-      if (isOwnProfile) {
-        const res = await api.get('/users/me');
-        setProfileData(res.data);
-        setFollowersCount(res.data.followers_count || 0);
-        setFollowingCount(res.data.following_count || 0);
-        setPostsCount(res.data.posts_count || 0);
-        populateEditForm(res.data);
-      } else {
-        const res = await api.get(`/users/${targetId}`);
-        setProfileData(res.data);
-        setFollowersCount(res.data.followers_count || 0);
-        setFollowingCount(res.data.following_count || 0);
-        setPostsCount(res.data.posts_count || 0);
-        setIsFollowing(res.data.is_following || false);
-        setConnStatus(res.data.connection?.status || 'none');
-      }
-    } catch (err) {
-      console.error('Failed to load profile', err);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const { data: fetchedProfile, isLoading: loading, refetch: fetchProfile } = useQuery({
+    queryKey: ['userProfile', targetId, isOwnProfile],
+    queryFn: async () => {
+      if (!targetId) return null;
+      const url = isOwnProfile ? '/users/me' : `/users/${targetId}`;
+      const res = await api.get(url);
+      return res.data;
+    },
+    enabled: !!targetId,
+    staleTime: 1000 * 60 * 3
+  });
 
   const populateEditForm = (data: any) => {
     if (!data) return;
@@ -203,8 +190,19 @@ export const UserProfilePage: React.FC = () => {
   };
 
   useEffect(() => {
-    fetchProfile();
-  }, [targetId, isOwnProfile]);
+    if (fetchedProfile) {
+      setProfileData(fetchedProfile);
+      setFollowersCount(fetchedProfile.followers_count || 0);
+      setFollowingCount(fetchedProfile.following_count || 0);
+      setPostsCount(fetchedProfile.posts_count || 0);
+      if (isOwnProfile) {
+        populateEditForm(fetchedProfile);
+      } else {
+        setIsFollowing(fetchedProfile.is_following || false);
+        setConnStatus(fetchedProfile.connection?.status || 'none');
+      }
+    }
+  }, [fetchedProfile, isOwnProfile]);
 
   const handleQuickStatusChange = async (newStatus: string) => {
     setEditStatus(newStatus);
@@ -251,9 +249,11 @@ export const UserProfilePage: React.FC = () => {
     );
   };
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+
+    // Show local preview immediately
     const reader = new FileReader();
     reader.onload = () => {
       if (reader.result) {
@@ -261,6 +261,16 @@ export const UserProfilePage: React.FC = () => {
       }
     };
     reader.readAsDataURL(file);
+
+    // Upload to permanent backend storage
+    try {
+      const permanentUrl = await uploadFile(file);
+      setEditAvatarUrl(permanentUrl);
+      notify.success('Photo Uploaded', 'Avatar saved to permanent storage.');
+    } catch (err: any) {
+      console.error('Avatar upload failed:', err);
+      notify.error('Upload Failed', err.response?.data?.error || 'Failed to upload photo.');
+    }
   };
 
   const handleSaveInline = async (e: React.FormEvent) => {
@@ -418,11 +428,7 @@ export const UserProfilePage: React.FC = () => {
   };
 
   if (loading) {
-    return (
-      <div className="max-w-5xl mx-auto px-4 py-20 text-center text-neutral-500 dark:text-[#8A8A8A]">
-        <p className="text-xs">Loading profile...</p>
-      </div>
-    );
+    return <PageSpinner text="Loading profile..." />;
   }
 
   if (!profileData) {

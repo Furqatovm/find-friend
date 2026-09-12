@@ -9,16 +9,16 @@ class Project(db.Model):
     
     title = db.Column(db.String(150), nullable=False)
     description = db.Column(db.Text, nullable=False)
-    category = db.Column(db.String(50), nullable=False)  # Startups, Open Source, Game Dev, AI, Research, etc.
+    category = db.Column(db.String(50), nullable=False, index=True)  # Startups, Open Source, Game Dev, AI, Research, etc.
     goals = db.Column(db.Text, nullable=True)
     
     looking_for_roles = db.Column(db.String(255), nullable=False)  # e.g., "Frontend Dev, UI/UX Designer, ML Engineer"
     required_skills = db.Column(db.String(255), nullable=True)    # e.g., "React, Python, PyTorch"
     
-    image_url = db.Column(db.String(500), nullable=True)
+    image_url = db.Column(db.Text, nullable=True)
     max_members = db.Column(db.Integer, default=5)
-    status = db.Column(db.String(20), default='recruiting')  # recruiting, in_progress, completed
-    stage = db.Column(db.String(50), default='Idea')  # Idea, Prototype, MVP, Launched
+    status = db.Column(db.String(20), default='recruiting', index=True)  # recruiting, in_progress, completed
+    stage = db.Column(db.String(50), default='Idea', index=True)  # Idea, Prototype, MVP, Launched
     
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
@@ -62,8 +62,8 @@ class ProjectMember(db.Model):
     __tablename__ = 'project_members'
 
     id = db.Column(db.String(36), primary_key=True, default=generate_uuid)
-    project_id = db.Column(db.String(36), db.ForeignKey('projects.id', ondelete='CASCADE'), nullable=False)
-    user_id = db.Column(db.String(36), db.ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
+    project_id = db.Column(db.String(36), db.ForeignKey('projects.id', ondelete='CASCADE'), nullable=False, index=True)
+    user_id = db.Column(db.String(36), db.ForeignKey('users.id', ondelete='CASCADE'), nullable=False, index=True)
     role = db.Column(db.String(50), default='Contributor')  # Lead, Frontend, Backend, Designer, etc.
     joined_at = db.Column(db.DateTime, default=datetime.utcnow)
 

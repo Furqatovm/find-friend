@@ -1,36 +1,60 @@
 import requests
 import logging
 
+import threading
+
 logger = logging.getLogger(__name__)
 
 TELEGRAM_BOT_TOKEN = '7968530811:AAFyAKWD8Pgq7Yjg06T_zvopNvFCqVWqXNM'
 TELEGRAM_API_BASE = f'https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}'
 
+# In-memory cached chat_id to avoid repeated getUpdates roundtrips
+_CACHED_CHAT_ID = None
 
 class TelegramBotService:
     """
-    Sends user support messages to the Manabu Telegram bot.
-    The bot forwards these to the admin's Telegram chat.
+    Sends user support messages to the Telegram bot asynchronously.
+    The bot forwards these to the admin's Telegram chat without blocking user requests.
     """
 
     @staticmethod
     def get_bot_chat_id():
-        """
-        Fetch the latest chat_id from getUpdates so we know where to send.
-        Falls back to stored chat_id if no updates available.
-        """
+        global _CACHED_CHAT_ID
+        if _CACHED_CHAT_ID:
+            return _CACHED_CHAT_ID
+
         try:
-            res = requests.get(f'{TELEGRAM_API_BASE}/getUpdates', timeout=5)
+            res = requests.get(f'{TELEGRAM_API_BASE}/getUpdates', timeout=3)
             data = res.json()
             if data.get('ok') and data.get('result'):
-                # Get the most recent chat that messaged the bot
                 for update in reversed(data['result']):
                     chat = update.get('message', {}).get('chat', {})
                     if chat.get('id'):
-                        return chat['id']
+                        _CACHED_CHAT_ID = chat['id']
+                        return _CACHED_CHAT_ID
         except Exception as e:
-            logger.error(f'Failed to get Telegram bot chat_id: {e}')
+            logger.warning(f'Failed to get Telegram bot chat_id: {e}')
         return None
+
+    @staticmethod
+    def _dispatch_async(chat_id: str, text: str):
+        try:
+            res = requests.post(
+                f'{TELEGRAM_API_BASE}/sendMessage',
+                json={
+                    'chat_id': chat_id,
+                    'text': text,
+                    'parse_mode': 'Markdown'
+                },
+                timeout=5
+            )
+            result = res.json()
+            if result.get('ok'):
+                logger.info(f'Support message sent to Telegram chat {chat_id}')
+            else:
+                logger.warning(f'Telegram API response: {result}')
+        except Exception as e:
+            logger.warning(f'Async Telegram dispatch error: {e}')
 
     @staticmethod
     def send_support_message(
@@ -43,15 +67,14 @@ class TelegramBotService:
         message: str = ''
     ) -> bool:
         """
-        Send a formatted support message to Telegram bot.
-        Returns True if sent successfully.
+        Send a formatted support message to Telegram bot in a background thread.
+        Returns True immediately to prevent blocking the user HTTP request.
         """
         chat_id = TelegramBotService.get_bot_chat_id()
         if not chat_id:
-            logger.warning('No Telegram chat_id found. Admin needs to /start the bot first.')
+            logger.info('No active Telegram chat_id found yet for notifications.')
             return False
 
-        # Topic emoji mapping
         topic_emoji = {
             'support': '🛠',
             'safety': '🚨',
@@ -61,7 +84,6 @@ class TelegramBotService:
         }
         emoji = topic_emoji.get(topic, '📩')
 
-        # Build contact section
         contact_lines = []
         if sender_telegram:
             contact_lines.append(f'  📱 Telegram: @{sender_telegram.lstrip("@")}')
@@ -84,23 +106,11 @@ class TelegramBotService:
             f'{contact_section}\n'
         )
 
-        try:
-            res = requests.post(
-                f'{TELEGRAM_API_BASE}/sendMessage',
-                json={
-                    'chat_id': chat_id,
-                    'text': text,
-                    'parse_mode': 'Markdown'
-                },
-                timeout=10
-            )
-            result = res.json()
-            if result.get('ok'):
-                logger.info(f'Support message sent to Telegram chat {chat_id}')
-                return True
-            else:
-                logger.error(f'Telegram API error: {result}')
-                return False
-        except Exception as e:
-            logger.error(f'Failed to send Telegram message: {e}')
-            return False
+        # Dispatch non-blocking background thread
+        thread = threading.Thread(
+            target=TelegramBotService._dispatch_async,
+            args=(chat_id, text),
+            daemon=True
+        )
+        thread.start()
+        return True

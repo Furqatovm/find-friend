@@ -31,7 +31,12 @@ class MessageService:
 
     @staticmethod
     def get_user_conversations(user_id: str):
-        convs = Conversation.query.filter(
+        from sqlalchemy.orm import joinedload, selectinload
+        convs = Conversation.query.options(
+            joinedload(Conversation.user1).joinedload(User.profile),
+            joinedload(Conversation.user2).joinedload(User.profile),
+            selectinload(Conversation.messages)
+        ).filter(
             (Conversation.user1_id == user_id) | (Conversation.user2_id == user_id)
         ).order_by(Conversation.last_message_at.desc()).all()
         

@@ -21,6 +21,20 @@ class Config:
     SQLALCHEMY_DATABASE_URI = _db_url
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     
+    # Production connection pool settings
+    if _db_url and _db_url.startswith("sqlite"):
+        SQLALCHEMY_ENGINE_OPTIONS = {
+            "pool_pre_ping": True,
+        }
+    else:
+        SQLALCHEMY_ENGINE_OPTIONS = {
+            "pool_size": int(os.getenv("DB_POOL_SIZE", "15")),
+            "max_overflow": int(os.getenv("DB_MAX_OVERFLOW", "25")),
+            "pool_recycle": int(os.getenv("DB_POOL_RECYCLE", "1800")),
+            "pool_pre_ping": True,
+            "pool_timeout": 30
+        }
+    
     CORS_ORIGINS = os.getenv("CORS_ORIGINS", "*")
     
     # Discovery & Matching weights
